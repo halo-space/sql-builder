@@ -1,6 +1,6 @@
 [package]
 name = "halo-sqlx"
-version = "0.3.3"
+version = "0.6.0"
 edition = "2024"
 description = "一个可组合的 SQL 拼接与参数收集库（参考 go-sqlbuilder 的设计）"
 documentation = "https://docs.rs/halo-sqlx"

@@ -886,17 +886,16 @@ fn build_where_clause(flavor: Flavor, conditions: &[Condition]) -> Option<WhereC
                 .min(c.or_operators.len())
                 .min(or_values.len());
             let mut exprs = Vec::new();
-            for i in 0..iter_len {
-                if let Some(expr) = build_expr(
+            for (i, value) in or_values.iter().enumerate().take(iter_len) {
+                match build_expr(
                     flavor,
                     &cond_builder,
                     &c.or_fields[i],
                     c.or_operators[i],
-                    &or_values[i],
+                    value,
                 ) {
-                    if !expr.is_empty() {
-                        exprs.push(expr);
-                    }
+                    Some(expr) if !expr.is_empty() => exprs.push(expr),
+                    _ => {}
                 }
             }
             if !exprs.is_empty() {
@@ -905,17 +904,20 @@ fn build_where_clause(flavor: Flavor, conditions: &[Condition]) -> Option<WhereC
                     .add_where_expr(cond_builder.args.clone(), [combined]);
                 has_expr = true;
             }
-        } else if let Some(expr) = build_expr(
-            flavor,
-            &cond_builder,
-            &c.field,
-            c.operator,
-            &materialize_value(c),
-        ) {
-            if !expr.is_empty() {
-                wc.borrow_mut()
-                    .add_where_expr(cond_builder.args.clone(), [expr]);
-                has_expr = true;
+        } else {
+            match build_expr(
+                flavor,
+                &cond_builder,
+                &c.field,
+                c.operator,
+                &materialize_value(c),
+            ) {
+                Some(expr) if !expr.is_empty() => {
+                    wc.borrow_mut()
+                        .add_where_expr(cond_builder.args.clone(), [expr]);
+                    has_expr = true;
+                }
+                _ => {}
             }
         }
     }

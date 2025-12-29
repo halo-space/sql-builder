@@ -49,13 +49,13 @@ impl IntoStrings for String {
     }
 }
 
-impl<'a> IntoStrings for &'a str {
+impl IntoStrings for &str {
     fn extend_into_strings(self, dst: &mut Vec<String>) {
         dst.push(self.to_string());
     }
 }
 
-impl<'a, const N: usize, T> IntoStrings for [T; N]
+impl<const N: usize, T> IntoStrings for [T; N]
 where
     T: Into<String> + Clone,
 {
@@ -66,7 +66,7 @@ where
     }
 }
 
-impl<'a, T> IntoStrings for &'a [T]
+impl<T> IntoStrings for &[T]
 where
     T: Into<String> + Clone,
 {
@@ -77,7 +77,7 @@ where
     }
 }
 
-impl<'a, T> IntoStrings for &'a Vec<T>
+impl<T> IntoStrings for &Vec<T>
 where
     T: Into<String> + Clone,
 {

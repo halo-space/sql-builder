@@ -20,3 +20,8 @@ time = { version = "0.3.44", features = ["formatting", "macros"] }
 
 [dev-dependencies]
 pretty_assertions = "1.4.1"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "builder_bench"
+harness = false

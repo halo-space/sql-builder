@@ -516,7 +516,7 @@ impl<T: SqlStruct> Struct<T> {
             if self.should_omit_empty(fm) && value.is_empty_field(fm.rust) {
                 continue;
             }
-                // If with_quote, keep quoting when writing column names.
+            // If with_quote, keep quoting when writing column names.
             let field_alias = self.alias_of(fm);
             let col = if fm.with_quote {
                 self.flavor.quote(&field_alias)

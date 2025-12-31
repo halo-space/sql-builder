@@ -100,12 +100,12 @@ pub enum Arg {
     Valuer(Box<dyn SqlValuer>),
     SqlNamed(SqlNamedArg),
     Raw(Raw),
-/// Unified representation for lists/tuples.
+    /// Unified representation for lists/tuples.
     List {
         args: Vec<Arg>,
         is_tuple: bool,
     },
-/// Named(name,arg) — only effective for `${name}` in Build/BuildNamed.
+    /// Named(name,arg) — only effective for `${name}` in Build/BuildNamed.
     Named {
         name: String,
         arg: Box<Arg>,

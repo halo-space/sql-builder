@@ -1,25 +1,25 @@
-# halo-sqlbuilder 
+# halo-sqlbuilder
 
-- For Chinese documentation, see [README.zh.md](README.zh.md).
+- 英文文档请参见 [README.md](README.md)。
 
-- Provides:
-- `Args` + `Flavor`: placeholder strategies `?`, `$1`, `@p1`, `:1` with dialect control.
-- Builders: `SelectBuilder`, `InsertBuilder`, `UpdateBuilder`, `DeleteBuilder`, `UnionBuilder`, `CTEBuilder`, `CTEQueryBuilder`, `CreateTableBuilder`, covering query/insert/update/delete/aggregate/CTE/Union with cloning.
-- `Build`/`Buildf`/`BuildNamed`: `${name}`, `$0`, `$?`, `$$`, `Raw`, `List`, `Tuple`, nested builders, named arg reuse, literal `$`.
-- `Struct` + `field_mapper`: `macro_rules!` generated `FieldMeta`; supports `db`/`fieldtag`/`fieldopt`/`fieldas`, `with_tag`/`without_tag`, custom mappers (snake_case/kebab_case/prefix/suffix); works with `SqlValuer`.
-- `Scan` + `ScanCell`: Addr-style scanning helpers.
-- `interpolate`: literal SQL interpolation for drivers without parameter support; flavor-aware escaping for strings/numbers/datetime/bool.
-- `SqlValuer`: deferred value computation with custom sources.
-- 138 examples/tests (doc-tests included) covering builder, Struct, CTE, Union, field mapper, named params, etc.
+- 功能概览：
+- `Args` + `Flavor`：支持 `?`、`$1`、`@p1`、`:1` 等占位符策略，并可按方言控制。
+- Builders：`SelectBuilder`、`InsertBuilder`、`UpdateBuilder`、`DeleteBuilder`、`UnionBuilder`、`CTEBuilder`、`CTEQueryBuilder`、`CreateTableBuilder`，覆盖查询/插入/更新/删除/聚合/CTE/Union，并支持 clone 重用。
+- `Build`/`Buildf`/`BuildNamed`：`${name}`、`$0`、`$?`、`$$`、`Raw`、`List`、`Tuple`、嵌套 builder、named arg 重用、字面量 `$`。
+- `Struct` + `field_mapper`：`macro_rules!` 生成 `FieldMeta`；支持 `db`/`fieldtag`/`fieldopt`/`fieldas`、`with_tag`/`without_tag`、自定义 mapper（snake_case/kebab_case/prefix/suffix）；兼容 `SqlValuer`。
+- `Scan` + `ScanCell`：Addr 风格的扫描辅助。
+- `interpolate`：为不支持参数化的驱动提供 SQL 插值；按 flavor 对字符串/数字/日期时间/布尔等做转义。
+- `SqlValuer`：支持延迟取值与自定义数据源。
+- 138 个示例/测试（含 doc-test），覆盖 builder、Struct、CTE、Union、field mapper、named params 等。
 
-## Install & Import
+## 安装与导入
 
-- Install: `cargo add halo-sqlbuilder`
-- Use: `use halo_space::sqlbuilder::{...};`
+- 安装：`cargo add halo-sqlbuilder`
+- 使用：`use halo_space::sqlbuilder::{...};`
 
-## Usage
+## 用法
 
-### Build SELECT
+### 创建 SELECT
 
 ```rust
 use halo_space::sqlbuilder::{from_tables, select_cols, where_exprs, select::SelectBuilder};
@@ -34,7 +34,7 @@ assert_eq!(sql, "SELECT id FROM user WHERE status IN (?, ?, ?)");
 assert_eq!(args.len(), 3);
 ```
 
-### Builder API directly
+### 直接使用 builder API
 
 ```rust
 use halo_space::sqlbuilder::select::SelectBuilder;
@@ -52,11 +52,11 @@ assert!(sql.contains("SELECT id, name, email, score"));
 assert!(sql.contains("FROM users, users_detail"));
 ```
 
-`select` / `select_more` / `from` / `where_` accept anything implementing `IntoStrings` (`&str`, `String`, arrays, `Vec`), or you can call the macros directly.
+`select` / `select_more` / `from` / `where_` 等函数现在接受任何实现了 `IntoStrings` 的输入（`&str`、`String`、数组、`Vec`），也可直接用宏调用。
 
-`SelectBuilder`/`UpdateBuilder`/`DeleteBuilder`/`InsertBuilder` expose `build()` which delegates to `build_with_flavor`, so you rarely need to import `modifiers::Builder` explicitly.
+`SelectBuilder`/`UpdateBuilder`/`DeleteBuilder`/`InsertBuilder` 都自带 `build()` 方法，内部直接调用对应的 `build_with_flavor`，通常不需要再显式导入 `modifiers::Builder`。
 
-### Condition / Chain queries
+### Condition / Chain 查询
 
 ```rust
 use halo_space::sqlbuilder::condition::{
@@ -133,9 +133,9 @@ assert_eq!(sql3, "SELECT id, name FROM user WHERE `name` = ?");
 assert_eq!(args3, vec!["jzero".into()]);
 ```
 
-### Variadic macros
+### 变长参数宏
 
-Macros (`select_cols!`, `from_tables!`, `where_exprs!`, `returning_cols!`, etc.) can be imported from the root: `use halo_space::sqlbuilder::{select_cols, from_tables, where_exprs};` They expand multiple strings/columns into `Vec<String>` so you don't build slices manually.
+宏（`select_cols!`、`from_tables!`、`where_exprs!`、`returning_cols!` 等）可直接从根导入：`use halo_space::sqlbuilder::{select_cols, from_tables, where_exprs};` 它们会把多个字符串/列名展开为 `Vec<String>`，无需手动构造切片。
 
 ```rust
 use halo_space::sqlbuilder::{from_tables, order_by_cols, select_cols, where_exprs, select::SelectBuilder};
@@ -182,7 +182,7 @@ let (sql, _) = ub.build();
 assert!(sql.contains("UPDATE users SET score = score + 1 WHERE status = 'active' ORDER BY score DESC"));
 ```
 
-### Condition / Chain update
+### Condition / Chain 更新
 
 ```rust
 use halo_space::sqlbuilder::condition::{
@@ -219,7 +219,7 @@ let (sql, _) = db.build();
 assert!(sql.contains("DELETE FROM sessions WHERE expired_at < NOW() LIMIT ?"));
 ```
 
-### Nested builders / Buildf
+### 嵌套 Builder / Buildf
 
 ```rust
 use halo_space::sqlbuilder::{builder::buildf, from_tables, select_cols, select::SelectBuilder};
@@ -236,7 +236,7 @@ let (sql, _) = explain.build();
 assert!(sql.contains("EXPLAIN SELECT id FROM user"));
 ```
 
-### Named parameters
+### 命名参数
 
 ```rust
 use halo_space::sqlbuilder::{
@@ -286,7 +286,7 @@ let (sql, _) = s.select_from("user").build();
 assert!(sql.contains("user.user_name"));
 ```
 
-### CTE and Union
+### CTE 与 Union
 
 ```rust
 use halo_space::sqlbuilder::{
@@ -346,7 +346,7 @@ let (sql, _) = ct.build();
 assert!(sql.contains("CREATE TABLE"));
 ```
 
-### Flavor switching
+### Flavor 切换
 
 ```rust
 use halo_space::sqlbuilder::{Flavor, select::SelectBuilder, select_cols, from_tables};
@@ -362,7 +362,7 @@ assert!(pg_sql.contains("$1") || pg_sql.contains("$2")); // PostgreSQL placehold
 assert!(mysql_sql.contains("?")); // MySQL placeholders
 ```
 
-### Args / placeholders / named parameters
+### Args / 占位符 / 命名参数
 
 ```rust
 use halo_space::sqlbuilder::{builder::build_named, modifiers::{SqlNamedArg, list, raw}};
@@ -380,7 +380,7 @@ assert!(sql.contains("@t")); // named placeholder
 assert_eq!(args.len(), 0);   // named params not in args
 ```
 
-### Build/Buildf quick wrappers
+### Build/Buildf 快速包装
 
 ```rust
 use halo_space::sqlbuilder::builder::{build, buildf};
@@ -430,7 +430,7 @@ assert_eq!(id, 42);
 assert_eq!(name, "alice");
 ```
 
-### interpolate (non-parameterized)
+### interpolate（非参数化场景）
 
 ```rust
 use halo_space::sqlbuilder::interpolate::interpolate_with_flavor;
@@ -445,7 +445,7 @@ assert!(sql.contains("'alice'"));
 assert!(sql.contains("90"));
 ```
 
-### SqlValuer deferred values
+### SqlValuer 延迟取值
 
 ```rust
 use halo_space::sqlbuilder::{valuer::SqlValuer, value::SqlValue};
@@ -462,7 +462,7 @@ let v: SqlValue = now.to_sql_value().unwrap();
 assert_eq!(v, SqlValue::I64(1_700_000_000));
 ```
 
-## Maintenance & Testing
+## 维护与测试
 
 ```bash
 cargo fmt
@@ -470,13 +470,11 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test
 ```
 
-## License
+## 许可证
 
 MIT
 
-## Acknowledgements
+## 致谢
 
-- [huandu/go-sqlbuilder](https://github.com/huandu/go-sqlbuilder): design inspiration.
-- [jzero](https://github.com/jzero-io/jzero): chain and template ideas used in examples.
-
-
+- [huandu/go-sqlbuilder](https://github.com/huandu/go-sqlbuilder)：设计灵感来源。
+- [jzero](https://github.com/jzero-io/jzero)：示例中的链式与模板思路来源。

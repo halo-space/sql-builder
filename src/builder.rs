@@ -1,4 +1,4 @@
-//! Build / BuildNamed / Buildf 等自由拼接能力（对齐 go-sqlbuilder `builder.go`）。
+//! Build / BuildNamed / Buildf: helpers for format-style SQL builders.
 
 use crate::args::Args;
 use crate::flavor::Flavor;
@@ -43,7 +43,7 @@ impl Builder for FlavoredBuilder {
     }
 }
 
-/// WithFlavor：给 builder 绑定默认 flavor。
+/// WithFlavor: bind a default flavor to a builder.
 pub fn with_flavor(builder: impl Builder + 'static, flavor: Flavor) -> Box<dyn Builder> {
     Box::new(FlavoredBuilder {
         inner: Box::new(builder),
@@ -51,7 +51,7 @@ pub fn with_flavor(builder: impl Builder + 'static, flavor: Flavor) -> Box<dyn B
     })
 }
 
-/// Build：使用 `$` 特殊语法构建 builder。
+/// Build: construct a builder using `$` placeholders.
 pub fn build(
     format: impl Into<String>,
     args_in: impl IntoIterator<Item = impl Into<Arg>>,
@@ -63,7 +63,7 @@ pub fn build(
     Box::new(CompiledBuilder::new(args, format.into()))
 }
 
-/// BuildNamed：只启用 `${name}` 与 `$$`，从 map 中引用参数。
+/// BuildNamed: enable only `${name}` and `$$`, sourcing args from a map.
 pub fn build_named(
     format: impl Into<String>,
     named_map: impl IntoIterator<Item = (String, Arg)>,
@@ -80,7 +80,7 @@ pub fn build_named(
     Box::new(CompiledBuilder::new(args, format.into()))
 }
 
-/// Buildf：类似 fmt.Sprintf 的自由拼接（仅支持 `%v`/`%s`）。
+/// Buildf: fmt-like builder supporting `%v`/`%s` only.
 pub fn buildf(format: &str, args_in: impl IntoIterator<Item = impl Into<Arg>>) -> Box<dyn Builder> {
     let mut args = Args::default();
     let escaped = escape(format);
@@ -113,6 +113,6 @@ pub fn buildf(format: &str, args_in: impl IntoIterator<Item = impl Into<Arg>>) -
         }
     }
 
-    // 忽略多余参数：对齐 go 的 fmt 行为（多余的不会出现在 format 中）
+    // Ignore extra arguments, mirroring fmt-like behavior (unused args are dropped).
     Box::new(CompiledBuilder::new(args, out))
 }

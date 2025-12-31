@@ -1,4 +1,4 @@
-//! CTEQueryBuilder：构建一个 CTE 表（对齐 go-sqlbuilder `ctequery.go`）。
+//! CTEQueryBuilder: build a single CTE entry.
 
 use crate::args::Args;
 use crate::flavor::Flavor;
@@ -27,7 +27,7 @@ pub struct CTEQueryBuilder {
     marker: InjectionMarker,
 }
 
-// Box<dyn Builder> 无法自动 Debug；避免 Debug 派生失败。
+// Box<dyn Builder> cannot auto-derive Debug; keep Debug off to avoid failures.
 impl std::fmt::Debug for CTEQueryBuilder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CTEQueryBuilder")

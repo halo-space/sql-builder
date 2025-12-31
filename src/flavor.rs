@@ -1,10 +1,10 @@
-//! SQL Flavor（方言）：控制占位符、Quote、Interpolate 等行为。
+//! SQL Flavor (dialects): control placeholders, quoting, and interpolation behavior.
 
 use std::fmt;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Mutex, MutexGuard};
 
-/// 与 go-sqlbuilder `Flavor` 对齐的方言枚举。
+/// Flavor enum describing supported SQL dialects.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum Flavor {
     #[default]
@@ -45,18 +45,18 @@ impl Flavor {
     }
 }
 
-/// 获取当前全局默认 Flavor（对齐 go-sqlbuilder `DefaultFlavor`）。
+/// Get the current global default Flavor.
 pub fn default_flavor() -> Flavor {
     Flavor::from_u8(DEFAULT_FLAVOR.load(Ordering::Relaxed))
 }
 
-/// 设置全局默认 Flavor，返回旧值（对齐 go-sqlbuilder 的用法习惯）。
+/// Set the global default Flavor and return the previous one.
 pub fn set_default_flavor(flavor: Flavor) -> Flavor {
     let old = DEFAULT_FLAVOR.swap(flavor.to_u8(), Ordering::Relaxed);
     Flavor::from_u8(old)
 }
 
-/// 修改全局默认 Flavor 的 RAII guard（会持有一个全局锁，避免并行测试互相干扰）。
+/// RAII guard for temporarily changing the global Flavor (holds a global lock to avoid test interference).
 pub struct DefaultFlavorGuard {
     _lock: MutexGuard<'static, ()>,
     old: Flavor,
@@ -68,7 +68,7 @@ impl Drop for DefaultFlavorGuard {
     }
 }
 
-/// 在一个作用域内临时设置 DefaultFlavor，并保证退出作用域后自动恢复。
+/// Temporarily set the default Flavor for a scope and restore it on drop.
 pub fn set_default_flavor_scoped(flavor: Flavor) -> DefaultFlavorGuard {
     let lock = DEFAULT_FLAVOR_LOCK
         .lock()
@@ -108,7 +108,7 @@ pub enum InterpolateError {
 }
 
 impl Flavor {
-    /// 对齐 go-sqlbuilder `Flavor#Quote`：为标识符加引号。
+    /// Quote an identifier using the dialect's rules.
     pub fn quote(self, name: &str) -> String {
         match self {
             Self::MySQL | Self::ClickHouse | Self::Doris => format!("`{name}`"),
@@ -124,7 +124,7 @@ impl Flavor {
         }
     }
 
-    /// 对齐 go-sqlbuilder `Flavor.PrepareInsertIgnore` 的核心逻辑。
+    /// Dialect-specific INSERT/IGNORE keyword choice.
     pub fn prepare_insert_ignore(self) -> &'static str {
         match self {
             Flavor::MySQL | Flavor::Oracle => "INSERT IGNORE",

@@ -1,8 +1,8 @@
-//! SQL 参数值类型。
+//! SQL parameter value types.
 
 use std::borrow::Cow;
 
-/// SQL 参数值。
+/// SQL parameter value representation.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SqlValue {
     Null,
@@ -15,7 +15,7 @@ pub enum SqlValue {
     DateTime(SqlDateTime),
 }
 
-/// 用于对齐 go-sqlbuilder `time.Time` 的插值行为（含可选时区缩写）。
+/// SQL datetime value with optional timezone abbreviation.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SqlDateTime {
     pub dt: time::OffsetDateTime,
@@ -34,7 +34,7 @@ impl SqlDateTime {
 }
 
 impl SqlValue {
-    /// 将 `Option<T>` 映射为 `SqlValue`：`None => Null`，`Some(v) => v.into()`。
+    /// Map `Option<T>` to `SqlValue`: `None => Null`, `Some(v) => v.into()`.
     pub fn from_option<T: Into<SqlValue>>(v: Option<T>) -> Self {
         match v {
             Some(v) => v.into(),

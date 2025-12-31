@@ -7,7 +7,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     fn to_postgresql(sql: &str) -> String {
-        // 等价 go 测试里的 toPostgreSQL：把 '?' 依次替换成 $1..$n
+        // Same as Go's toPostgreSQL: replace '?' with $1..$n in order
         let parts: Vec<&str> = sql.split('?').collect();
         if parts.len() == 1 {
             return sql.to_string();

@@ -222,7 +222,7 @@ mod tests {
 
     #[test]
     fn build_with_postgresql_builders_respects_outer_default_flavor() {
-        // 对齐 go `TestBuildWithPostgreSQL`：嵌套 builder 的内部 flavor 不应影响外部 Build 的 flavor。
+        // Nested builders: inner flavor should not override outer default flavor.
         {
             let _g = set_default_flavor_scoped(Flavor::MySQL);
 
@@ -259,7 +259,7 @@ mod tests {
         }
 
         {
-            // 注意：必须让上一个 guard 先 drop，否则会在同线程上二次 lock 导致死锁“卡死”。
+            // Note: previous guard must drop before locking again, otherwise same-thread double lock deadlocks.
             let _g = set_default_flavor_scoped(Flavor::PostgreSQL);
 
             let mut sb1 = crate::select::SelectBuilder::new();
@@ -297,7 +297,7 @@ mod tests {
 
     #[test]
     fn build_with_cql_nested_insert_builders() {
-        // 对齐 go `TestBuildWithCQL`
+        // Mirror Go `TestBuildWithCQL`.
         let _g = set_default_flavor_scoped(Flavor::CQL);
 
         let mut ib1 = crate::insert::InsertBuilder::new();

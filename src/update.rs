@@ -1,4 +1,4 @@
-//! UpdateBuilder：构建 UPDATE 语句（对齐 go-sqlbuilder `update.go` 的核心行为）。
+//! UpdateBuilder: build UPDATE statements.
 
 use crate::args::Args;
 use crate::cond::{ArgsRef, Cond};
@@ -319,7 +319,7 @@ impl UpdateBuilder {
         format!("{f} = {f} + {}", self.var(value))
     }
 
-    /// Add：对齐 go-sqlbuilder `UpdateBuilder.Add`。
+    /// Add an assignment expression.
     pub fn add(&self, field: &str, value: impl Into<Arg>) -> String {
         self.add_(field, value)
     }
@@ -391,7 +391,7 @@ impl UpdateBuilder {
         self
     }
 
-    /// NumAssignment：对齐 go-sqlbuilder `UpdateBuilder.NumAssignment()`。
+    /// Number of assignment expressions.
     pub fn num_assignment(&self) -> usize {
         self.assignments.iter().filter(|s| !s.is_empty()).count()
     }

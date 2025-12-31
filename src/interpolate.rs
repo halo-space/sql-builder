@@ -1,6 +1,6 @@
-//! SQL 插值：将 `sql` 中的占位符替换为 `args` 的字面量（对齐 go-sqlbuilder `interpolate.go`）。
+//! SQL interpolation: replace placeholders in `sql` with literal values from `args`.
 //!
-//! 安全警告：插值永远不如预编译参数安全；本实现仅用于兼容不支持参数化的驱动。
+//! Safety warning: interpolation is less safe than prepared parameters; use only for drivers without parameter support.
 
 use crate::flavor::{Flavor, InterpolateError};
 use crate::modifiers::Arg;
@@ -119,7 +119,7 @@ fn postgresql_interpolate(query: &str, args: &[Arg]) -> Result<String, Interpola
             }
             '$' => {
                 if quote == Some('$') {
-                    // 尝试匹配结束 dollar quote
+                    // Attempt to match the closing dollar-quote delimiter
                     if let Some(dq) = &dollar_quote
                         && query[i..].starts_with(dq)
                     {
@@ -140,7 +140,7 @@ fn postgresql_interpolate(query: &str, args: &[Arg]) -> Result<String, Interpola
                     continue;
                 }
 
-                // 解析 $n 或 $tag$ 的开始
+                // Parse the start of $n or $tag$ dollar-quote
                 let mut j = i + 1;
                 if j < bytes.len()
                     && (bytes[j] as char).is_ascii_digit()
@@ -221,7 +221,7 @@ fn sqlserver_interpolate(query: &str, args: &[Arg]) -> Result<String, Interpolat
                 i += 1;
             }
             '@' if quote.is_none() => {
-                // 只插值 @pN/@PN
+                // Only interpolate @pN/@PN
                 if i + 2 < bytes.len()
                     && ((bytes[i + 1] as char) == 'p' || (bytes[i + 1] as char) == 'P')
                 {
@@ -259,7 +259,7 @@ fn sqlserver_interpolate(query: &str, args: &[Arg]) -> Result<String, Interpolat
 }
 
 fn oracle_interpolate(query: &str, args: &[Arg]) -> Result<String, InterpolateError> {
-    // 参考 go 的 oracleInterpolate：支持 :n，且支持 :tag: 形式的“类 dollar quote”跳过插值。
+    // Oracle-style interpolate: support :n and :tag: forms, skipping interpolation inside :tag: blocks.
     let mut out = String::with_capacity(query.len() + args.len() * 20);
     let mut quote: Option<char> = None; // '\'' | '"' | ':'(colon-quote)
     let mut escaping = false;
@@ -285,7 +285,7 @@ fn oracle_interpolate(query: &str, args: &[Arg]) -> Result<String, InterpolateEr
             }
             '\'' => {
                 if quote == Some('\'') {
-                    // Oracle: '' 表示一个 '
+                    // Oracle: '' represents a single quote
                     if i + 1 < bytes.len() && bytes[i + 1] as char == '\'' {
                         out.push('\'');
                         out.push('\'');
@@ -401,7 +401,7 @@ fn encode_sql_value(
         },
         SqlValue::I64(n) => out.push_str(&n.to_string()),
         SqlValue::U64(n) => out.push_str(&n.to_string()),
-        // Rust 不支持 printf 的 %g；这里用 Display 行为（后续如需严格对齐再细化）。
+        // Rust does not support printf's %g; rely on Display for now (extend if stricter formatting is needed).
         SqlValue::F64(n) => out.push_str(&n.to_string()),
         SqlValue::String(s) => quote_string(out, s.as_ref(), flavor),
         SqlValue::Bytes(b) => encode_bytes(out, b, flavor)?,
@@ -501,14 +501,14 @@ fn encode_datetime(
     flavor: Flavor,
 ) -> Result<(), InterpolateError> {
     // go: time.Time zero => '0000-00-00'
-    // 这里：如果 year==0 视为 zero（time crate 不允许 year 0，这里用 Unix epoch 作为“非零”）。
-    // 暂用一个约定：unix_timestamp==0 且 nanosecond==0 且 tz_abbr None 视为 zero。
+    // If year==0 treat as zero (time crate disallows year 0; use Unix epoch as the non-zero baseline).
+    // Convention: unix_timestamp==0 && nanosecond==0 && tz_abbr None => zero.
     if v.dt.unix_timestamp() == 0 && v.dt.nanosecond() == 0 && v.tz_abbr.is_none() {
         out.push_str("'0000-00-00'");
         return Ok(());
     }
 
-    // 四舍五入到微秒：+500ns
+    // Round to microseconds: +500ns
     let dt = v.dt + time::Duration::nanoseconds(500);
 
     match flavor {
@@ -522,7 +522,7 @@ fn encode_datetime(
         }
         Flavor::PostgreSQL => {
             // '... ffffff TZ'
-            // go 用 MST（缩写）；Rust 这边用 tz_abbr，如无则回退 offset
+            // Go uses MST abbreviation; here we prefer tz_abbr, fallback to offset.
             format_dt(
                 out,
                 &dt,

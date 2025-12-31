@@ -1,8 +1,8 @@
-//! Field mapper：把 Rust 字段名映射为列名（对齐 go-sqlbuilder `fieldmapper.go`）。
+//! Field mapper: map Rust field names to column names.
 
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 
-/// 字段名映射函数类型（对齐 go 的 `FieldMapperFunc`）。
+/// Function type for field name mapping.
 pub type FieldMapperFunc = Arc<dyn Fn(&str) -> String + Send + Sync + 'static>;
 
 fn identity_impl(s: &str) -> String {
@@ -11,7 +11,7 @@ fn identity_impl(s: &str) -> String {
 
 static IDENTITY_MAPPER: OnceLock<FieldMapperFunc> = OnceLock::new();
 
-/// 恒等 mapper（等价于 go 的 `DefaultFieldMapper == nil`）。
+/// Identity mapper (equivalent to leaving the mapper unset).
 pub fn identity_mapper() -> FieldMapperFunc {
     IDENTITY_MAPPER
         .get_or_init(|| Arc::new(identity_impl))
@@ -25,7 +25,7 @@ fn mapper_cell() -> &'static Mutex<FieldMapperFunc> {
     DEFAULT_FIELD_MAPPER.get_or_init(|| Mutex::new(identity_mapper()))
 }
 
-/// 获取当前全局默认 FieldMapper（对齐 go 的 `DefaultFieldMapper`）。
+/// Get the current global default FieldMapper.
 pub fn default_field_mapper() -> FieldMapperFunc {
     mapper_cell()
         .lock()
@@ -33,13 +33,13 @@ pub fn default_field_mapper() -> FieldMapperFunc {
         .clone()
 }
 
-/// 设置全局默认 FieldMapper，返回旧值。
+/// Set the global default FieldMapper and return the previous one.
 pub fn set_default_field_mapper(mapper: FieldMapperFunc) -> FieldMapperFunc {
     let mut g = mapper_cell().lock().unwrap_or_else(|e| e.into_inner());
     std::mem::replace(&mut *g, mapper)
 }
 
-/// 修改全局默认 FieldMapper 的 RAII guard（会持有一个全局锁，避免并行测试互相干扰）。
+/// RAII guard for temporarily replacing the global FieldMapper (holds a global lock to avoid test interference).
 pub struct DefaultFieldMapperGuard {
     _lock: MutexGuard<'static, ()>,
     old: FieldMapperFunc,
@@ -51,7 +51,7 @@ impl Drop for DefaultFieldMapperGuard {
     }
 }
 
-/// 在一个作用域内临时设置默认 FieldMapper，并保证退出作用域后自动恢复。
+/// Temporarily set the default FieldMapper for a scope and restore it on drop.
 pub fn set_default_field_mapper_scoped(mapper: FieldMapperFunc) -> DefaultFieldMapperGuard {
     let lock = DEFAULT_FIELD_MAPPER_LOCK
         .lock()
@@ -90,31 +90,31 @@ fn convert_with_separator(s: &str, sep: char) -> String {
     out
 }
 
-/// SnakeCaseMapper：将 `CamelCase` 转为 `snake_case`（对齐 go 的 `SnakeCaseMapper`）。
+/// SnakeCaseMapper: convert `CamelCase` to `snake_case`.
 ///
-/// 注意：go-sqlbuilder 依赖 `xstrings.ToSnakeCase`。这里实现的是足以覆盖本仓库测试的规则子集：
-/// - 大写转小写
-/// - 单词边界插入 `_`（`aB`/`a1B`/`ABc` 等）
+/// Notes: this implementation covers the rules needed for this crate's tests:
+/// - upper to lower case
+/// - insert `_` at word boundaries (`aB` / `a1B` / `ABc` etc.)
 pub fn snake_case_mapper(s: &str) -> String {
     convert_with_separator(s, '_')
 }
 
-/// KebabcaseMapper：将 `CamelCase` 转为 `kebab-case`（用于测试更多转换策略）。
+/// KebabcaseMapper: convert `CamelCase` to `kebab-case`.
 pub fn kebab_case_mapper(s: &str) -> String {
     convert_with_separator(s, '-')
 }
 
-/// UpperCaseMapper：将字段名转为全部大写。
+/// UpperCaseMapper: convert a field name to uppercase.
 pub fn upper_case_mapper(s: &str) -> String {
     s.to_ascii_uppercase()
 }
 
-/// PrefixMapper：返回一个在字段名前添加固定前缀的 mapper。
+/// PrefixMapper: add a fixed prefix to a field name.
 pub fn prefix_mapper(prefix: &'static str) -> FieldMapperFunc {
     Arc::new(move |name| format!("{prefix}{name}"))
 }
 
-/// SuffixMapper：返回一个在字段名后添加固定后缀的 mapper。
+/// SuffixMapper: add a fixed suffix to a field name.
 pub fn suffix_mapper(suffix: &'static str) -> FieldMapperFunc {
     Arc::new(move |name| format!("{name}{suffix}"))
 }

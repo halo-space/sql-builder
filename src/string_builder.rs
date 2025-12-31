@@ -1,4 +1,4 @@
-//! 高效的字符串拼接工具（对齐 go-sqlbuilder 的 stringBuilder 行为）。
+//! Lightweight string builder utilities.
 
 #[derive(Debug, Default, Clone)]
 pub(crate) struct StringBuilder {
@@ -10,7 +10,7 @@ impl StringBuilder {
         Self { buf: String::new() }
     }
 
-    /// 写入 `s`；如果不是首次写入，会先写入一个空格。
+    /// Write `s`; if not the first write, prepend a space.
     #[allow(dead_code)]
     pub(crate) fn write_leading(&mut self, s: &str) {
         if !self.buf.is_empty() {

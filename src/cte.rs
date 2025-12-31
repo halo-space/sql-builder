@@ -1,4 +1,4 @@
-//! CTEBuilder：构建 WITH / WITH RECURSIVE（对齐 go-sqlbuilder `cte.go`）。
+//! CTEBuilder: build WITH / WITH RECURSIVE clauses.
 
 use crate::args::Args;
 use crate::cte_query::CTEQueryBuilder;
@@ -16,14 +16,14 @@ use std::rc::Rc;
 const CTE_MARKER_INIT: InjectionMarker = 0;
 const CTE_MARKER_AFTER_WITH: InjectionMarker = 1;
 
-/// with 创建 CTEBuilder（同 go With）。
+/// `with` creates a CTEBuilder for non-recursive CTEs.
 pub fn with(queries: impl IntoIterator<Item = CTEQueryBuilder>) -> CTEBuilder {
     let mut builder = CTEBuilder::new();
     builder.with(queries);
     builder
 }
 
-/// with_recursive 创建 recursive CTEBuilder（同 go WithRecursive）。
+/// `with_recursive` creates a CTEBuilder for recursive CTEs.
 pub fn with_recursive(queries: impl IntoIterator<Item = CTEQueryBuilder>) -> CTEBuilder {
     let mut builder = CTEBuilder::new();
     builder.with_recursive(queries);
@@ -87,7 +87,7 @@ impl CTEBuilder {
             marker: self.marker,
         };
 
-        // 重新绑定 query_vars 对应的 builder（保持 deep clone 后 args 内部一致）
+        // Rebind query_vars builders to keep args consistent after deep clone
         for (ph, q) in cloned.query_vars.iter().zip(cloned.queries.iter()) {
             cloned
                 .args

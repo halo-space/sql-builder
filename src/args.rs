@@ -1,4 +1,4 @@
-//! Args：存储参数并把含 `$` 语法的 format 编译成最终 SQL（对齐 go-sqlbuilder `args.go`）。
+//! Args: hold parameters and compile `$`-style formats into final SQL.
 
 use crate::flavor::Flavor;
 use crate::flavor::default_flavor;
@@ -12,10 +12,10 @@ pub enum CompileError {
     InvalidArgRef(isize),
 }
 
-/// Args 存储 SQL 相关参数。
+/// Args store SQL-related arguments and index mappings.
 #[derive(Debug, Clone)]
 pub struct Args {
-    /// 默认 flavor，用于 `compile`。
+    /// Default flavor used by `compile`.
     pub flavor: Flavor,
 
     pub(crate) index_base: usize,
@@ -40,13 +40,13 @@ impl Default for Args {
 }
 
 impl Args {
-    /// Add：追加一个参数并返回内部占位符（`$0/$1/...`）。
+    /// Add: push an argument and return the internal placeholder (`$0/$1/...`).
     pub fn add(&mut self, arg: impl Into<Arg>) -> String {
         let idx = self.add_internal(arg.into());
         format!("${idx}")
     }
 
-    /// Replace：用新参数替换某个 `$n` 占位符对应的值（对齐 go-sqlbuilder `Args.Replace`）。
+    /// Replace: swap the value bound to a `$n` placeholder.
     pub fn replace(&mut self, placeholder: &str, arg: impl Into<Arg>) {
         if !placeholder.starts_with('$') {
             return;
@@ -63,9 +63,9 @@ impl Args {
         }
     }
 
-    /// Value：按 `$<n>` 前缀解析参数值（对齐 go-sqlbuilder `Args.Value` 的“宽松匹配”）。
+    /// Value: parse a placeholder with `$<n>` prefix (lenient match).
     ///
-    /// - `placeholder` 可以带后缀（如 `"$0xxx"`），只要以 `$<digits>` 开头就会解析。
+    /// - `placeholder` may have suffix (e.g. `"$0xxx"`); as long as it starts with `$<digits>` it will be parsed.
     pub fn value(&self, placeholder: &str) -> Option<&Arg> {
         let s = placeholder.strip_prefix('$')?;
         let mut end = 0usize;
@@ -100,7 +100,7 @@ impl Args {
                 if let Some(&p) = self.named_args.get(name) {
                     arg = self.arg_values[p - self.index_base].clone();
                 } else {
-                    // 先把真实参数加入，再记录 name->idx
+                    // Add real argument first, then record name->idx
                     let real_idx = self.add_internal((**inner).clone());
                     self.named_args.insert(name.clone(), real_idx);
                     return real_idx;
@@ -113,12 +113,12 @@ impl Args {
         idx
     }
 
-    /// Compile：按默认 flavor 编译 format。
+    /// Compile: build SQL using the default flavor.
     pub fn compile(&self, format: &str, initial_value: &[Arg]) -> (String, Vec<Arg>) {
         self.compile_with_flavor(format, self.flavor, initial_value)
     }
 
-    /// CompileWithFlavor：编译 format，并用 `flavor` 输出最终占位符。
+    /// CompileWithFlavor: build SQL using a specific flavor.
     pub fn compile_with_flavor(
         &self,
         format: &str,
@@ -238,7 +238,7 @@ impl Args {
             return values;
         }
 
-        // 先追加 ctx 中遇到的 named args，并去重
+        // Add named args encountered during parsing first, de-duplicated.
         let mut seen = HashMap::<String, ()>::new();
         for a in named {
             if seen.insert(a.name.clone(), ()).is_none() {
@@ -246,7 +246,7 @@ impl Args {
             }
         }
 
-        // 再追加 Add() 时出现但 ctx 中未出现的 named args，按位置稳定排序
+        // Then append named args added via Add() but not seen in parsing order.
         let mut idxs: Vec<usize> = self
             .sql_named_args
             .iter()
@@ -304,8 +304,7 @@ impl CompileContext {
                 }
             }
             Arg::Named { .. } => {
-                // Named 只在 `${name}` 被解析到时才会真正生效；
-                // 这里按普通值处理（保持行为可预测）。
+                // Named only takes effect when `${name}` is parsed; treat as a value here for predictability.
                 self.write_placeholder_and_push(arg.clone());
             }
             Arg::Valuer(_) => self.write_placeholder_and_push(arg.clone()),

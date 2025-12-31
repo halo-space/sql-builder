@@ -80,7 +80,7 @@ mod tests {
             "DELETE FROM t WHERE id = ? AND credit >= ? AND level >= ? AND deleted = ?"
         );
 
-        // Nested WhereClause + late-binding builder (对齐 go：先把 sb 当子查询传进去，再继续修改 sb）
+        // Nested WhereClause + late-binding builder: pass sb as subquery first, then keep mutating sb.
         let sb_shared = Rc::new(RefCell::new(sb));
         let sb_arg: Arg = (Box::new(rc_builder(sb_shared.clone())) as Box<dyn Builder>).into();
         ub.where_([ub.not_in("id", [sb_arg])]);

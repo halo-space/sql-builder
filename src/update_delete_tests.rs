@@ -46,7 +46,7 @@ mod tests {
     #[test]
     fn update_assignments_like_go() {
         let _g = set_default_flavor_scoped(Flavor::MySQL);
-        // incr/decr 不产生参数
+        // incr/decr emit no args
         let mut ub = UpdateBuilder::new();
         ub.set([ub.incr("f")]);
         let (sql, args) = ub.build_with_flavor(Flavor::PostgreSQL, &[]);
@@ -59,7 +59,7 @@ mod tests {
         assert_eq!(sql, "SET f = f - 1");
         assert_eq!(args.len(), 0);
 
-        // add/sub/mul/div 产生 1 个参数
+        // add/sub/mul/div emit one arg
         let mut ub = UpdateBuilder::new();
         let expr = ub.add("f", 123_i64);
         ub.set([expr]);

@@ -1,12 +1,12 @@
-//! Scan：为 `Struct::addr*` 提供可写入的“扫描目标”（对齐 go-sqlbuilder 的 Addr/Scan 体验）。
+//! Scan: writable scan targets for `Struct::addr*`.
 //!
-//! go 中 `database/sql` 通过 `Scan(dest...)` 写入指针；Rust 没有统一反射式 Scan API。
-//! 本实现提供一个最小子集：把“字符串 token”写入到字段（用于对齐 go 的单测与示例）。
+//! Go's `database/sql` writes into pointers via `Scan(dest...)`; Rust lacks a unified reflective Scan API.
+//! This provides a minimal subset: write string tokens into fields for tests and examples.
 
 use crate::valuer::SqlValuer;
 use std::marker::PhantomData;
 
-/// 扫描/解析错误。
+/// Errors during scanning/parsing.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ScanError {
     #[error("builder not enough tokens")]
@@ -23,7 +23,7 @@ pub enum ScanError {
     UnsupportedType,
 }
 
-/// 从字符串 token 写入自身（最小子集）。
+/// Minimal trait to write a string token into a value.
 pub trait ScanFromStr {
     fn scan_from_str(&mut self, s: &str) -> Result<(), ScanError>;
 }
@@ -107,7 +107,7 @@ impl ScanFromStr for Box<dyn SqlValuer> {
 type Setter = fn(*mut (), &str) -> Result<(), ScanError>;
 
 fn set_impl<T: ScanFromStr>(ptr: *mut (), s: &str) -> Result<(), ScanError> {
-    // SAFETY: ptr 由宏从真实字段地址构造，且 lifetime 由 ScanCell 约束。
+    // SAFETY: pointers are built by macros from real field addresses, lifetimes bound by ScanCell.
     let r = unsafe { &mut *(ptr as *mut T) };
     r.scan_from_str(s)
 }
@@ -134,7 +134,7 @@ impl<'a> ScanCell<'a> {
     }
 }
 
-/// 按空白分割输入，把每个 token 写入对应的 dest。
+/// Split by whitespace and write each token into the corresponding destination.
 pub fn scan_tokens(input: &str, mut dests: Vec<ScanCell<'_>>) -> Result<(), ScanError> {
     let mut it = input.split_whitespace();
     for d in dests.iter_mut() {

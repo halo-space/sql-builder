@@ -1,4 +1,4 @@
-//! Cond：用于构造 WHERE 条件表达式（对齐 go-sqlbuilder `cond.go`）。
+//! Cond: helpers to build WHERE clause expressions.
 
 use crate::args::Args;
 use crate::flavor::Flavor;
@@ -12,14 +12,14 @@ const MIN_INDEX_BASE: usize = 256;
 
 pub type ArgsRef = Rc<RefCell<Args>>;
 
-/// Cond 提供构造条件表达式的辅助方法。
+/// Cond provides helper methods for conditional expressions.
 #[derive(Debug, Clone)]
 pub struct Cond {
     pub(crate) args: ArgsRef,
 }
 
 impl Cond {
-    /// 创建一个独立 Cond（对齐 go 版：index_base 设大一点，避免误用导致递归爆栈）。
+    /// Create an independent Cond; uses a larger index_base to avoid accidental recursion.
     pub fn new() -> Self {
         let a = Args {
             index_base: MIN_INDEX_BASE,
@@ -34,7 +34,7 @@ impl Cond {
         Self { args }
     }
 
-    /// Var：把值放进 Args，返回 `$n` 占位符。
+    /// Var: store a value into Args and return the `$n` placeholder.
     pub fn var(&self, value: impl Into<Arg>) -> String {
         self.args.borrow_mut().add(value)
     }
@@ -206,7 +206,7 @@ impl Cond {
         let field = field.to_string();
         let value: Arg = value.into();
 
-        // 需要根据 flavor 决定 ILIKE 或 LOWER(...) LIKE LOWER(...)
+        // Choose ILIKE or LOWER(...) LIKE LOWER(...) based on flavor
         let b = CondDynBuilder::new(move |flavor, initial| {
             let mut a = Args {
                 flavor,
@@ -583,7 +583,7 @@ impl Cond {
     }
 }
 
-/// 用于实现依赖 flavor 的条件表达式（模拟 go 的 condBuilder）。
+/// Internal helper for flavor-dependent conditional expressions.
 #[derive(Clone)]
 struct CondDynBuilder {
     f: Rc<CondBuildFn>,

@@ -15,7 +15,7 @@ mod tests {
     }
 
     fn new_test_pair(expected: &'static str, f: impl FnOnce(&Cond) -> String) -> TestPair {
-        // 对齐 go cond_test.go 里的 newCond(): Args{}（index_base=0）
+        // Match Go cond_test.go newCond(): Args{} with index_base=0.
         let args = Rc::new(RefCell::new(Args::default()));
         let cond = Cond::with_args(args.clone());
         let fmt = f(&cond);
@@ -99,7 +99,7 @@ mod tests {
 
     #[test]
     fn cond_empty_field_like_go() {
-        let cond = Cond::new(); // NewCond：空 field 返回 ""
+        let cond = Cond::new(); // NewCond: empty field yields "".
         let cases = vec![
             cond.equal("", 123),
             cond.not_equal("", 123),

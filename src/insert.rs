@@ -1,4 +1,4 @@
-//! InsertBuilder：构建 INSERT 语句（对齐 go-sqlbuilder `insert.go` 的核心行为）。
+//! InsertBuilder: build INSERT statements.
 
 use crate::args::Args;
 use crate::flavor::Flavor;
@@ -97,7 +97,7 @@ impl InsertBuilder {
         self.table = Some(escape(table));
         self.marker = INSERT_MARKER_AFTER_INSERT_INTO;
 
-        // PostgreSQL: ON CONFLICT DO NOTHING 需要在 VALUES 后插入
+        // PostgreSQL: ON CONFLICT DO NOTHING must appear after VALUES
         if flavor == Flavor::PostgreSQL {
             self.marker = INSERT_MARKER_AFTER_VALUES;
             self.sql("ON CONFLICT DO NOTHING");
@@ -121,7 +121,7 @@ impl InsertBuilder {
         self
     }
 
-    /// Insert-Select：返回一个 SelectBuilder 来构建 SELECT 部分。
+    /// Insert-Select: returns a SelectBuilder to build the SELECT part.
     pub fn select<T>(&mut self, cols: T) -> SelectBuilder
     where
         T: IntoStrings,

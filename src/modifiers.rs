@@ -1,4 +1,4 @@
-//! 参数修饰器与辅助函数（对齐 go-sqlbuilder `modifiers.go`）。
+//! Argument modifiers and helpers for builders.
 
 use crate::flavor::Flavor;
 use crate::value::SqlValue;
@@ -7,17 +7,17 @@ use dyn_clone::DynClone;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-/// Escape：把 `$` 替换为 `$$`，避免被 `Args::compile` 当成表达式。
+/// Escape: replace `$` with `$$` to avoid being parsed as an expression by `Args::compile`.
 pub fn escape(ident: &str) -> String {
     ident.replace('$', "$$")
 }
 
-/// EscapeAll：批量 Escape。
+/// EscapeAll: escape a collection of identifiers.
 pub fn escape_all(idents: impl IntoIterator<Item = impl AsRef<str>>) -> Vec<String> {
     idents.into_iter().map(|s| escape(s.as_ref())).collect()
 }
 
-/// Raw：标记为原样拼入 SQL（不会成为参数占位符）。
+/// Raw: inline SQL fragment without becoming a placeholder.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Raw {
     pub(crate) expr: String,
@@ -27,7 +27,7 @@ pub fn raw(expr: impl Into<String>) -> Arg {
     Arg::Raw(Raw { expr: expr.into() })
 }
 
-/// List：标记为参数列表，会展开成 `?, ?, ?`（或对应 flavor 占位符序列）。
+/// List: mark as argument list; expands to `?, ?, ?` (or flavor-specific placeholders).
 pub fn list<T: FlattenIntoArgs>(arg: T) -> Arg {
     let mut out = Vec::new();
     arg.flatten_into(&mut out);
@@ -37,7 +37,7 @@ pub fn list<T: FlattenIntoArgs>(arg: T) -> Arg {
     }
 }
 
-/// Tuple：标记为元组，会展开成 `(?, ?)`（或对应 flavor 占位符序列）。
+/// Tuple: mark as tuple; expands to `(?, ?)` (or flavor-specific placeholders).
 pub fn tuple<T: FlattenIntoArgs>(values: T) -> Arg {
     let mut out = Vec::new();
     values.flatten_into(&mut out);
@@ -47,7 +47,7 @@ pub fn tuple<T: FlattenIntoArgs>(values: T) -> Arg {
     }
 }
 
-/// TupleNames：生成 `(a, b, c)` 的列名元组字符串（不做 escape）。
+/// TupleNames: build a column tuple string like `(a, b, c)` without escaping.
 pub fn tuple_names(names: impl IntoIterator<Item = impl AsRef<str>>) -> String {
     let mut s = String::from("(");
     let mut first = true;
@@ -62,14 +62,14 @@ pub fn tuple_names(names: impl IntoIterator<Item = impl AsRef<str>>) -> String {
     s
 }
 
-/// Flatten：对齐 go-sqlbuilder `Flatten` 的“递归展开”体验（Rust 版用 trait 代替反射）。
+/// Flatten: recursively expand values into argument list (trait-based, no reflection).
 pub fn flatten<T: FlattenIntoArgs>(v: T) -> Vec<Arg> {
     let mut out = Vec::new();
     v.flatten_into(&mut out);
     out
 }
 
-/// Named：命名参数（仅用于 `Build/BuildNamed` 的 `${name}` 引用）。
+/// Named: named parameter used by `Build/BuildNamed` via `${name}`.
 pub fn named(name: impl Into<String>, arg: impl Into<Arg>) -> Arg {
     Arg::Named {
         name: name.into(),
@@ -77,7 +77,7 @@ pub fn named(name: impl Into<String>, arg: impl Into<Arg>) -> Arg {
     }
 }
 
-/// 对齐 go 的 `sql.NamedArg`：用于在 SQL 中以 `@name` 占位复用。
+/// SqlNamedArg: helper for `@name` placeholders inside SQL.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SqlNamedArg {
     pub name: String,
@@ -93,19 +93,19 @@ impl SqlNamedArg {
     }
 }
 
-/// Builder/Args 体系使用的动态参数类型。
+/// Dynamic argument types used by the Builder/Args system.
 #[derive(Clone)]
 pub enum Arg {
     Value(SqlValue),
     Valuer(Box<dyn SqlValuer>),
     SqlNamed(SqlNamedArg),
     Raw(Raw),
-    /// List/Tuple 的统一表示。
+/// Unified representation for lists/tuples.
     List {
         args: Vec<Arg>,
         is_tuple: bool,
     },
-    /// Named(name,arg) —— 只在 Build/BuildNamed 的 `${name}` 路径上生效。
+/// Named(name,arg) — only effective for `${name}` in Build/BuildNamed.
     Named {
         name: String,
         arg: Box<Arg>,
@@ -183,7 +183,7 @@ impl Builder for Box<dyn Builder> {
     }
 }
 
-/// 对齐 go-sqlbuilder `Builder`：可嵌套构建 SQL。
+/// Builder: trait for objects that can build SQL (nestable).
 pub trait Builder: DynClone {
     fn build(&self) -> (String, Vec<Arg>) {
         self.build_with_flavor(self.flavor(), &[])
@@ -196,10 +196,10 @@ pub trait Builder: DynClone {
 
 dyn_clone::clone_trait_object!(Builder);
 
-/// RcBuilder：把 `Rc<RefCell<T>>` 包装成 `Builder`，用于对齐 go-sqlbuilder 的“共享 builder 指针”语义。
+/// RcBuilder: wrap `Rc<RefCell<T>>` as a Builder to enable shared, late-bound builders.
 ///
-/// 典型用法：把 `SelectBuilder` 作为子查询参数传递，同时允许后续继续修改原 builder，
-/// 使得最终 build 时使用的是最新状态（late-binding）。
+/// Typical usage: pass a `SelectBuilder` as a subquery argument while allowing further mutation,
+/// so the final build uses the latest state.
 #[derive(Debug)]
 pub struct RcBuilder<T: Builder> {
     inner: Rc<RefCell<T>>,
@@ -312,7 +312,7 @@ impl From<SqlNamedArg> for Arg {
     }
 }
 
-/// 用 trait 实现 go-sqlbuilder `Flatten` 的“递归展开”体验。
+/// Trait-based implementation of recursive flattening.
 pub trait FlattenIntoArgs {
     fn flatten_into(self, out: &mut Vec<Arg>);
 }

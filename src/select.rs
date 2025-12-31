@@ -1,4 +1,4 @@
-//! SelectBuilder：构建 SELECT 语句（对齐 go-sqlbuilder `select.go` 的核心行为）。
+//! SelectBuilder: build SELECT statements with composable clauses.
 
 use crate::args::Args;
 use crate::cond::{ArgsRef, Cond};
@@ -24,7 +24,7 @@ const SELECT_MARKER_AFTER_ORDER_BY: InjectionMarker = 7;
 const SELECT_MARKER_AFTER_LIMIT: InjectionMarker = 8;
 const SELECT_MARKER_AFTER_FOR: InjectionMarker = 9;
 
-/// JoinOption（对齐 go-sqlbuilder）。
+/// JoinOption variants for explicit join keywords.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum JoinOption {
     FullJoin,
@@ -157,15 +157,15 @@ impl SelectBuilder {
         out
     }
 
-    /// 返回当前 WhereClause（可用于跨 builder 共享）。
+    /// Returns the current WhereClause (can be shared across builders).
     pub fn where_clause(&self) -> Option<WhereClauseRef> {
         self.where_clause.clone()
     }
 
-    /// 设置/共享 WhereClause（对齐 go-sqlbuilder 公开字段 `WhereClause` 的用法）。
+    /// Set or share a WhereClause.
     ///
-    /// - `None` 等价于清空 WHERE。
-    /// - `Some(wc)` 会把该 WhereClause 绑定到当前 builder，并确保内部 placeholder 指向正确的 builder。
+    /// - `None` clears the WHERE clause.
+    /// - `Some(wc)` binds the WhereClause to this builder and ensures placeholders point to the right builder.
     pub fn set_where_clause(&mut self, wc: Option<WhereClauseRef>) -> &mut Self {
         match wc {
             None => {
@@ -192,7 +192,7 @@ impl SelectBuilder {
         self.set_where_clause(None)
     }
 
-    /// AddWhereExpr：允许显式指定 ArgsRef，把表达式追加到 WhereClause（对齐 go-sqlbuilder）。
+    /// AddWhereExpr: append expressions to the WhereClause with an explicit ArgsRef.
     pub fn add_where_expr<T>(&mut self, args: ArgsRef, exprs: T) -> &mut Self
     where
         T: IntoStrings,
@@ -243,7 +243,7 @@ impl SelectBuilder {
             marker: self.marker,
         };
 
-        // 深拷贝 WhereClause，并修复 args 中对应 placeholder 的 Builder 指向新 WhereClause
+        // Deep clone WhereClause and fix Builder placeholder in args to point to the new WhereClause
         if let (Some(wc), Some(ph)) = (&self.where_clause, &self.where_var) {
             let new_wc = Rc::new(RefCell::new(wc.borrow().clone()));
             cloned.where_clause = Some(new_wc.clone());
@@ -572,7 +572,7 @@ impl Builder for SelectBuilder {
             write_injection(&mut buf, &self.injection, SELECT_MARKER_AFTER_ORDER_BY);
         }
 
-        // LIMIT/OFFSET 行为按 go-sqlbuilder flavor 规则
+        // LIMIT/OFFSET rules follow each flavor's expected behavior
         match flavor {
             Flavor::MySQL | Flavor::SQLite | Flavor::ClickHouse => {
                 if let Some(lim) = &self.limit_var {
@@ -643,7 +643,7 @@ impl Builder for SelectBuilder {
                 }
             }
             Flavor::Informix | Flavor::Doris => {
-                // 后续对齐 go 的特殊行为（Informix/Doris）
+                // Future: handle Informix/Doris specific quirks if needed
                 if let Some(lim) = &self.limit_var {
                     buf.write_leading("LIMIT");
                     buf.write_str(" ");

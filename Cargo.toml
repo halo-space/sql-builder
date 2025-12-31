@@ -1,8 +1,8 @@
 [package]
 name = "halo-sqlbuilder"
-version = "0.6.6"
+version = "1.0.0"
 edition = "2024"
-description = "一个可组合的 SQL 拼接与参数收集库（参考 go-sqlbuilder 的设计）"
+description = "Composable SQL builder and argument collector"
 documentation = "https://docs.rs/halo-sqlbuilder"
 homepage = "https://github.com/halo-space/sql-builder"
 repository = "https://github.com/halo-space/sql-builder"

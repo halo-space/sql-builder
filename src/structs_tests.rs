@@ -252,7 +252,7 @@ mod tests {
         };
 
         let (sql, args) = st.insert_into("foo", [&v1, &v2]).build();
-        // 对齐 go：`cc` 不能被省略（第二行非空），`ee` 不在 tag=patch2 的字段集合中
+        // Ensure `cc` is not omitted (second row non-empty) and `ee` not in tag=patch2 set.
         assert_eq!(sql, "INSERT INTO foo (`aa`, cc) VALUES (?, ?), (?, ?)");
         assert_eq!(args.len(), 4);
     }
@@ -268,12 +268,12 @@ mod tests {
 
     crate::sql_struct! {
         impl OmitEmptyForTag {
-            // A/B: omitempty 默认（""）=> 总是生效
+            // A/B: omitempty default ("") => always active
             a: { db: "aa", tags: ["patch"], omitempty: [""], quote: true,  as: None },
             b: { db: "bb", tags: ["patch"], omitempty: [""], quote: false, as: None },
-            // C: omitempty() == 默认 tag
+            // C: omitempty() == default tag
             c: { db: "cc", tags: ["patch"], omitempty: [""], quote: false, as: None },
-            // D: omitempty(patch) 只在 WithTag(patch) 时生效
+            // D: omitempty(patch) only active with WithTag(patch)
             d: { db: "D",  tags: ["patch"], omitempty: ["patch"], quote: false, as: None },
             e: { db: "ee", tags: ["patch"], omitempty: [],        quote: false, as: None },
         }
@@ -284,11 +284,11 @@ mod tests {
         let _g = set_default_flavor_scoped(Flavor::MySQL);
         let st = Struct::<OmitEmptyForTag>::new();
 
-        // 无 WithTag：只会省略默认 tag 的字段（A/B/C），D 不省略
+        // Without WithTag: only default-tag fields (A/B/C) are omitted; D stays.
         let (sql1, _) = st.update("foo", &OmitEmptyForTag::default()).build();
         assert_eq!(sql1, "UPDATE foo SET D = ?, ee = ?");
 
-        // WithTag("patch")：A/B/C/D 都会省略空值
+        // WithTag("patch"): A/B/C/D all omit empty values.
         let v = OmitEmptyForTag {
             a: 123,
             b: Some("bbbb".to_string()),
@@ -312,10 +312,10 @@ mod tests {
 
     crate::sql_struct! {
         impl OmitEmptyForMultipleTags {
-            // 等价于：omitempty + omitempty(patch, patch2)
+            // Equivalent to: omitempty + omitempty(patch, patch2)
             a: { db: "aa", tags: ["patch","patch2"], omitempty: ["", "patch", "patch2"], quote: true,  as: None },
             b: { db: "bb", tags: ["patch"],         omitempty: [""],                 quote: false, as: None },
-            // 等价于：omitempty + omitempty(patch2)
+            // Equivalent to: omitempty + omitempty(patch2)
             c: { db: "cc", tags: ["patch2"],        omitempty: ["", "patch2"],       quote: false, as: None },
             d: { db: "D",  tags: ["patch","patch2"],omitempty: ["patch","patch2"],    quote: false, as: None },
             e: { db: "ee", tags: ["patch"],         omitempty: [],                   quote: false, as: None },
@@ -343,7 +343,7 @@ mod tests {
         assert_eq!(sql2, "UPDATE foo SET `aa` = ?");
         assert_eq!(args2.len(), 1);
 
-        // Insert：cc 在 v1 为 0，但 v2 为 2 => cc 不能整列被过滤
+        // Insert: cc is 0 in v1 but 2 in v2 => cc column must not be filtered out.
         let v1 = OmitEmptyForMultipleTags {
             a: 123,
             b: Some("bbbb".to_string()),
@@ -377,7 +377,7 @@ mod tests {
         impl WithPointers {
             // a/c: omitempty
             a: { db: "aa", tags: [], omitempty: [""], quote: false, as: None },
-            // b: 不 omitempty（即使 None，也要写 NULL）
+            // b: not omitempty (write NULL even when None).
             b: { db: "bb", tags: [], omitempty: [],   quote: false, as: None },
             c: { db: "cc", tags: [], omitempty: [""], quote: false, as: None },
         }
@@ -412,7 +412,7 @@ mod tests {
 
     crate::sql_struct! {
         impl StructWithMapper {
-            // 注意：用 db:"" 表示“无 db tag”，会走 mapper；并保持定义顺序用于 shadow 行为。
+            // Note: db:"" means no db tag; uses mapper and keeps definition order for shadow behavior.
             field_name1: { db: "", orig: "FieldName1", tags: [], omitempty: [], quote: true,  as: None },
             field_name_set_by_tag: { db: "set_by_tag", tags: [], omitempty: [], quote: false, as: None },
             field_name_shadowed: { db: "field_name1", tags: [], omitempty: [], quote: false, as: None },
@@ -709,7 +709,7 @@ mod tests {
     crate::sql_struct! {
         impl ForeachDemo {
             id: { db: "id", orig: "ID", tags: [], omitempty: [], quote: false, as: None },
-            // db 为空：对齐 go Foreach* 的 dbtag 为空字符串
+            // Empty db: Foreach* exposes empty dbtag.
             name: { db: "", orig: "Name", tags: [], omitempty: [], quote: true, as: None },
             // db "-"：忽略
             ignored: { db: "-", orig: "Ignored", tags: [], omitempty: [], quote: false, as: None },
@@ -725,7 +725,7 @@ mod tests {
         s.foreach_read(|dbtag, quoted, fm| {
             read.push((dbtag.to_string(), quoted, fm.rust.to_string()));
         });
-        // 默认无 tag：ForRead 顺序 == 定义顺序（忽略 db:"-"）
+        // Default without tags: ForRead order matches definition (ignores db:"-").
         assert_eq!(
             read,
             vec![
@@ -738,7 +738,7 @@ mod tests {
         s.foreach_write(|dbtag, quoted, fm| {
             write.push((dbtag.to_string(), quoted, fm.rust.to_string()));
         });
-        // ForWrite 与 ForRead 在这个简单 case 下相同
+        // ForWrite equals ForRead in this simple case.
         assert_eq!(
             write,
             vec![
@@ -992,7 +992,7 @@ mod tests {
         assert_eq!(user.id, expected.id);
         assert_eq!(user.name, expected.name);
         assert_eq!(user.status, expected.status);
-        // created_at 不在 important tag 里，保持原值
+        // created_at is not in important tag; keep original value.
         assert_eq!(user.created_at, 9876543210);
         assert!(s.addr_for_tag("invalid", &mut user).is_none());
     }

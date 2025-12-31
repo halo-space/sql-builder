@@ -1,4 +1,4 @@
-//! DeleteBuilder：构建 DELETE 语句（对齐 go-sqlbuilder `delete.go` 的核心行为）。
+//! DeleteBuilder: build DELETE statements.
 
 use crate::args::Args;
 use crate::cond::{ArgsRef, Cond};

@@ -1,7 +1,7 @@
-//! Struct：轻量 ORM（参考 go-sqlbuilder 的 Struct/structfields 实现）。
+//! Struct: lightweight ORM-style helpers for table structs.
 //!
-//! Rust 无运行时反射；在“不新增 proc-macro crate”的约束下，本实现通过 `macro_rules!`
-//! 为 struct 生成字段元数据与取值逻辑，从而提供与 go-sqlbuilder 接近的体验。
+//! Without runtime reflection (and avoiding extra proc-macro crates), this uses `macro_rules!`
+//! to generate field metadata and getters, providing an experience close to reflective builders.
 
 use crate::delete::DeleteBuilder;
 use crate::escape_all;
@@ -21,20 +21,17 @@ pub enum FieldOpt {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FieldMeta {
-    /// Rust 字段名（用于生成取值代码）
+    /// Rust field name (used to generate value accessors).
     pub rust: &'static str,
-    /// 用于 FieldMapper 的“原始字段名”（对齐 go 的 reflect.StructField.Name）。
-    ///
-    /// Rust 无法获得运行时字段名；这里由宏生成，默认等于 `rust`，
-    /// 但测试/用户可以显式指定以对齐 go 的 CamelCase 命名。
+    /// Original field name used by the FieldMapper (macro-generated; defaults to `rust` but can override CamelCase).
     pub orig: &'static str,
-    /// SQL 列名（db tag / mapper 之后）
+    /// SQL column name (after db tag/mapper).
     pub db: &'static str,
-    /// 可选别名（AS）
+    /// Optional alias (AS).
     pub as_: Option<&'static str>,
-    /// tags
+    /// Tags.
     pub tags: &'static [&'static str],
-    /// omitempty tags（包含 "" 表示默认）
+    /// Omitempty tags (include "" for default).
     pub omitempty_tags: &'static [&'static str],
     pub with_quote: bool,
 }
@@ -55,31 +52,30 @@ impl FieldMeta {
 }
 
 fn is_ignored(fm: &FieldMeta) -> bool {
-    // 对齐 go 的 `db:"-"`：忽略该字段
+    // Honor `db:"-"`: skip this field.
     fm.db == "-"
 }
 
-/// 由宏为你的业务 struct 实现的 trait：提供字段元数据与取值/空值判断。
+/// Trait implemented by the macro for your structs: exposes metadata, values, and emptiness checks.
 pub trait SqlStruct: Sized {
     const FIELDS: &'static [FieldMeta];
 
-    /// 取字段的值用于 INSERT/UPDATE（按 FIELDS 顺序）。
+    /// Extract field values for INSERT/UPDATE (in FIELDS order).
     fn values(&self) -> Vec<crate::modifiers::Arg>;
 
-    /// 判断某个字段是否“空值”（用于 omitempty）。
+    /// Check whether a field is "empty" (used for omitempty).
     fn is_empty_field(&self, rust_field: &'static str) -> bool;
 
-    /// 返回可写入的扫描目标列表（用于 `Struct::addr*`）。
+    /// Return writable scan targets for `Struct::addr*`.
     ///
-    /// 说明：为了避免 Rust 借用检查器对“多次可变借用同一 struct”的限制，
-    /// 这里一次性生成全部 `ScanCell`（内部用 raw pointer 持有字段地址）。
+    /// Note: builds all `ScanCell`s at once (internally holds raw pointers) to avoid borrow-checker conflicts.
     fn addr_cells<'a>(
         &'a mut self,
         rust_fields: &[&'static str],
     ) -> Option<Vec<crate::scan::ScanCell<'a>>>;
 }
 
-/// 判断“空值”的 trait（用于实现 go-sqlbuilder 的 omitempty 语义子集）。
+/// Trait to determine "empty" values (implements omitempty semantics).
 pub trait IsEmpty {
     fn is_empty_value(&self) -> bool;
 }
@@ -116,7 +112,7 @@ empty_num!(i8, i16, i32, i64, isize, u8, u16, u32, u64, usize);
 
 impl IsEmpty for f64 {
     fn is_empty_value(&self) -> bool {
-        // 对齐 go：用 bits 判断 0（避免 -0.0 的边界差异）
+        // Use bits to check zero to avoid -0.0 edge cases.
         self.to_bits() == 0
     }
 }
@@ -138,7 +134,7 @@ impl<T> IsEmpty for Vec<T> {
 
 impl IsEmpty for Box<dyn crate::valuer::SqlValuer> {
     fn is_empty_value(&self) -> bool {
-        // 对齐 go 的指针语义：非 nil 指针不是 empty。
+        // Mirror pointer semantics: non-null pointer is not empty.
         false
     }
 }
@@ -165,7 +161,7 @@ impl<T: SqlStruct> Clone for Struct<T> {
 
 impl<T: SqlStruct> std::fmt::Debug for Struct<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // mapper 无法 Debug；这里只输出关键信息，避免影响使用与测试。
+        // Mapper cannot derive Debug; print key fields only.
         f.debug_struct("Struct")
             .field("flavor", &self.flavor)
             .field("with_tags", &self.with_tags)
@@ -191,9 +187,9 @@ impl<T: SqlStruct> Struct<T> {
         Self::default()
     }
 
-    /// WithFieldMapper：返回 shadow copy，并覆盖当前 Struct 的 mapper（对齐 go `Struct.WithFieldMapper`）。
+    /// WithFieldMapper: return a shadow copy with a different mapper.
     ///
-    /// - 传入 `identity_mapper()` 等价于 go 的 `WithFieldMapper(nil)`。
+    /// - Passing `identity_mapper()` matches the effect of a nil mapper.
     pub fn with_field_mapper(&self, mapper: FieldMapperFunc) -> Self {
         let mut c = self.clone();
         c.mapper = mapper;
@@ -209,14 +205,14 @@ impl<T: SqlStruct> Struct<T> {
             .any(|f| !is_ignored(f) && f.tags.contains(&tag))
     }
 
-    /// ForFlavor：返回 shadow copy（对齐 go `Struct.For`），不修改原对象。
+    /// ForFlavor: return a shadow copy with a different flavor.
     pub fn for_flavor(&self, flavor: Flavor) -> Self {
         let mut c = self.clone();
         c.flavor = flavor;
         c
     }
 
-    /// WithTag：返回 shadow copy（对齐 go `Struct.WithTag`），不修改原对象。
+    /// WithTag: return a shadow copy with additional tags.
     pub fn with_tag(&self, tags: impl IntoIterator<Item = &'static str>) -> Self {
         let mut c = self.clone();
         for t in tags {
@@ -232,7 +228,7 @@ impl<T: SqlStruct> Struct<T> {
         c
     }
 
-    /// WithoutTag：返回 shadow copy（对齐 go `Struct.WithoutTag`），不修改原对象。
+    /// WithoutTag: return a shadow copy excluding specific tags.
     pub fn without_tag(&self, tags: impl IntoIterator<Item = &'static str>) -> Self {
         let mut c = self.clone();
         for t in tags {
@@ -245,15 +241,15 @@ impl<T: SqlStruct> Struct<T> {
         }
         c.without_tags.sort_unstable();
         c.without_tags.dedup();
-        // 过滤 with_tags
+        // Filter out excluded with_tags entries.
         c.with_tags.retain(|t| !c.without_tags.contains(t));
         c
     }
 
     fn should_omit_empty(&self, fm: &FieldMeta) -> bool {
-        // 对齐 go 的 structField.ShouldOmitEmpty(with...):
-        // - 先看默认 tag ""
-        // - 再看 with tags
+        // Omit-empty rules:
+        // - default tag ""
+        // - then any with_tags
         let omit = fm.omitempty_tags;
         if omit.is_empty() {
             return false;
@@ -286,7 +282,7 @@ impl<T: SqlStruct> Struct<T> {
     }
 
     fn read_key_of(&self, fm: &FieldMeta) -> String {
-        // 对齐 go structField.Key：优先 As，否则 Alias，否则 Name
+        // Key preference: AS alias, otherwise mapped alias, otherwise rust name.
         if let Some(as_) = fm.as_ {
             return as_.to_string();
         }
@@ -295,7 +291,7 @@ impl<T: SqlStruct> Struct<T> {
     }
 
     fn write_key_of(&self, fm: &FieldMeta) -> String {
-        // 对齐 go ForWrite：按 Alias 去重
+        // For writes: deduplicate by alias.
         let a = self.alias_of(fm);
         if a.is_empty() { fm.rust.to_string() } else { a }
     }
@@ -339,7 +335,7 @@ impl<T: SqlStruct> Struct<T> {
             return out;
         }
 
-        // 对齐 go FilterTags(with...): 按 with_tags 顺序（这里已排序）逐个 tag 抽取字段并去重
+        // Filter by with_tags in order (deduplicated).
         for tag in &self.with_tags {
             for fm in T::FIELDS {
                 if fm.tags.contains(tag) {
@@ -352,11 +348,11 @@ impl<T: SqlStruct> Struct<T> {
     }
 
     fn parse_table_alias(table: &str) -> &str {
-        // 与 go 实现一致：取最后一个空格后的 token
+        // Match Go behavior: take token after the last space.
         table.rsplit_once(' ').map(|(_, a)| a).unwrap_or(table)
     }
 
-    /// Columns：对齐 go-sqlbuilder `Struct.Columns()`（返回 ForWrite 的未 quote 列名）。
+    /// Columns: return unquoted column names for write.
     pub fn columns(&self) -> Vec<String> {
         self.fields_for_write()
             .into_iter()
@@ -364,20 +360,17 @@ impl<T: SqlStruct> Struct<T> {
             .collect()
     }
 
-    /// ColumnsForTag：对齐 go-sqlbuilder `Struct.ColumnsForTag(tag)`。
-    ///
-    /// - 如果 tag 不存在，返回 None（对齐 go 返回 nil）
+    /// ColumnsForTag: return columns for a specific tag; None if tag not defined.
     pub fn columns_for_tag(&self, tag: &str) -> Option<Vec<String>> {
         if !Self::has_defined_tag(tag) {
             return None;
         }
-        // API 约束：当前实现需要 &'static str；这里为对齐 go 的便捷接口，做一次泄漏。
-        // 后续如果要严格控制内存，可把 tags 改为 Cow<'static, str>。
+        // API constraint: requires &'static str; we leak for convenience. Could switch to Cow later.
         let tag: &'static str = Box::leak(tag.to_string().into_boxed_str());
         Some(self.with_tag([tag]).columns())
     }
 
-    /// Values：对齐 go-sqlbuilder `Struct.Values()`（返回 ForWrite 的值，顺序与 `columns()` 一致）。
+    /// Values: return values for write in the same order as `columns()`.
     pub fn values(&self, v: &T) -> Vec<crate::modifiers::Arg> {
         let all = v.values();
         let mut out = Vec::new();
@@ -389,8 +382,7 @@ impl<T: SqlStruct> Struct<T> {
                 out.push(arg);
             }
         }
-        // 注意：上面是“声明顺序”而不是 “tag 分组顺序”；
-        // 为与 go 完全一致（多 tag 时按 tag 分组 + 去重），这里用 fields_for_write 再重排。
+        // Note: initial order follows declaration, not tag grouping; reorder with fields_for_write to dedupe by tag order.
         let mut map = std::collections::HashMap::<&'static str, crate::modifiers::Arg>::new();
         for (fm, arg) in T::FIELDS.iter().zip(v.values()) {
             map.insert(fm.rust, arg);
@@ -401,9 +393,7 @@ impl<T: SqlStruct> Struct<T> {
             .collect()
     }
 
-    /// ValuesForTag：对齐 go-sqlbuilder `Struct.ValuesForTag(tag, value)`。
-    ///
-    /// - 如果 tag 不存在，返回 None（对齐 go 返回 nil）
+    /// ValuesForTag: values restricted to a tag; None if tag not defined.
     pub fn values_for_tag(&self, tag: &str, v: &T) -> Option<Vec<crate::modifiers::Arg>> {
         if !Self::has_defined_tag(tag) {
             return None;
@@ -412,25 +402,25 @@ impl<T: SqlStruct> Struct<T> {
         Some(self.with_tag([tag]).values(v))
     }
 
-    /// ForeachRead：对齐 go-sqlbuilder `Struct.ForeachRead`。
+    /// ForeachRead: iterate readable fields.
     ///
-    /// - `dbtag`：等价 go 的 `sf.DBTag`（可能为空字符串）
-    /// - `is_quoted`：等价 go 的 `sf.IsQuoted`
-    /// - `field_meta`：Rust 侧提供的字段元信息（替代 go 的 `reflect.StructField`）
+    /// - `dbtag`: db tag (may be empty)
+    /// - `is_quoted`: whether the column needs quoting
+    /// - `field_meta`: Rust-side metadata instead of reflect.StructField
     pub fn foreach_read(&self, mut trans: impl FnMut(&str, bool, &FieldMeta)) {
         for fm in self.fields_for_read() {
             trans(fm.db, fm.with_quote, fm);
         }
     }
 
-    /// ForeachWrite：对齐 go-sqlbuilder `Struct.ForeachWrite`。
+    /// ForeachWrite: iterate writable fields.
     pub fn foreach_write(&self, mut trans: impl FnMut(&str, bool, &FieldMeta)) {
         for fm in self.fields_for_write() {
             trans(fm.db, fm.with_quote, fm);
         }
     }
 
-    /// Addr：对齐 go-sqlbuilder `Struct.Addr(st)`（返回 ForRead 的“写入目标”列表）。
+    /// Addr: return scan targets for readable fields.
     pub fn addr<'a>(&self, st: &'a mut T) -> Vec<crate::scan::ScanCell<'a>> {
         let rust_fields: Vec<&'static str> = self
             .fields_for_read()
@@ -440,8 +430,7 @@ impl<T: SqlStruct> Struct<T> {
         st.addr_cells(&rust_fields).unwrap_or_default()
     }
 
-    /// AddrForTag：对齐 go-sqlbuilder `Struct.AddrForTag(tag, st)`。
-    /// tag 不存在返回 None（对齐 go 返回 nil）。
+    /// AddrForTag: scan targets filtered by tag; None if tag not defined.
     pub fn addr_for_tag<'a>(
         &self,
         tag: &str,
@@ -454,8 +443,7 @@ impl<T: SqlStruct> Struct<T> {
         Some(self.with_tag([tag]).addr(st))
     }
 
-    /// AddrWithCols：对齐 go-sqlbuilder `Struct.AddrWithCols(cols, st)`。
-    /// 如果 cols 中任一列找不到，返回 None（对齐 go 返回 nil）。
+    /// AddrWithCols: scan targets for specific columns; None if any column is missing.
     pub fn addr_with_cols<'a>(
         &self,
         cols: &[&str],
@@ -487,7 +475,7 @@ impl<T: SqlStruct> Struct<T> {
             .map(|f| {
                 let field_alias = self.alias_of(f);
                 let mut c = String::new();
-                // 对齐 go：只检查 sf.Alias（db）是否包含 '.'
+                // Follow alias rule: only check if alias contains '.' when adding table prefix.
                 if self.flavor != Flavor::CQL && !field_alias.contains('.') {
                     c.push_str(alias);
                     c.push('.');
@@ -505,9 +493,9 @@ impl<T: SqlStruct> Struct<T> {
         sb
     }
 
-    /// SelectFromForTag：对齐 go-sqlbuilder `SelectFromForTag(table, tag)`（deprecated）。
+    /// SelectFromForTag: build SELECT for a tag (deprecated).
     pub fn select_from_for_tag(&self, table: &str, tag: &str) -> SelectBuilder {
-        // go：如果 tag 不存在，则 SELECT *；这里复用现有行为：with_tag 后 cols 为空 => select "*"
+        // If tag is missing: behaves like SELECT * (with_tag yields empty cols => select "*").
         let tag: &'static str = Box::leak(tag.to_string().into_boxed_str());
         self.with_tag([tag]).select_from(table)
     }
@@ -528,7 +516,7 @@ impl<T: SqlStruct> Struct<T> {
             if self.should_omit_empty(fm) && value.is_empty_field(fm.rust) {
                 continue;
             }
-            // 对齐 go 的 withquote：写入时也需要 quote 列名。
+                // If with_quote, keep quoting when writing column names.
             let field_alias = self.alias_of(fm);
             let col = if fm.with_quote {
                 self.flavor.quote(&field_alias)
@@ -544,7 +532,7 @@ impl<T: SqlStruct> Struct<T> {
         ub
     }
 
-    /// UpdateForTag：对齐 go-sqlbuilder `UpdateForTag(table, tag, value)`（deprecated）。
+    /// UpdateForTag: build UPDATE for a tag (deprecated).
     pub fn update_for_tag(&self, table: &str, tag: &str, value: &T) -> UpdateBuilder {
         let tag: &'static str = Box::leak(tag.to_string().into_boxed_str());
         self.with_tag([tag]).update(table, value)
@@ -568,7 +556,7 @@ impl<T: SqlStruct> Struct<T> {
         self.insert_internal(table, rows, InsertVerb::Insert)
     }
 
-    /// InsertIntoForTag：对齐 go-sqlbuilder `InsertIntoForTag(table, tag, value...)`（deprecated）。
+    /// InsertIntoForTag: build INSERT for a tag (deprecated).
     pub fn insert_into_for_tag<'a>(
         &self,
         table: &str,
@@ -618,7 +606,7 @@ impl<T: SqlStruct> Struct<T> {
             .collect()
     }
 
-    /// InsertIntoAny：对齐 go `InsertInto(table, value ...interface{})` 的“忽略非预期类型”语义。
+    /// InsertIntoAny: ignore values that are not of type T (like Go's permissive interface slice).
     pub fn insert_into_any<'a>(
         &self,
         table: &str,
@@ -744,13 +732,13 @@ impl<T: SqlStruct> Struct<T> {
 
         let rows: Vec<&T> = rows.into_iter().collect();
         if rows.is_empty() {
-            // 对齐 go：空 value slice 不会调用 Cols/Values
+            // Empty rows: do not emit cols/values.
             return ib;
         }
 
         let fields = self.fields_for_write();
 
-        // 计算列是否应被整体过滤（omitempty 且所有行均为空）
+        // Decide if a column should be filtered entirely (omitempty and all rows empty).
         let mut nil_cnt = vec![0_usize; fields.len()];
         for (fi, fm) in fields.iter().enumerate() {
             let should_omit = self.should_omit_empty(fm);
@@ -814,9 +802,9 @@ enum InsertVerb {
     Replace,
 }
 
-/// 声明一个可用于 `Struct<T>` 的业务 struct 元数据与取值逻辑。
+/// Declare metadata and value accessors for a business struct usable by `Struct<T>`.
 ///
-/// 用法示例：
+/// Example:
 ///
 /// ```ignore
 /// #[derive(Default)]
@@ -891,7 +879,7 @@ macro_rules! sql_struct {
     };
 }
 
-/// 宏内部 helper：支持 `orig:` 的可选参数。
+/// Macro helper: support optional `orig:` parameter.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __sql_struct_orig {

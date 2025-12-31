@@ -1,4 +1,4 @@
-//! UnionBuilder：构建 UNION / UNION ALL（对齐 go-sqlbuilder `union.go` 的核心行为）。
+//! UnionBuilder: build UNION / UNION ALL statements.
 
 use crate::args::Args;
 use crate::flavor::Flavor;
@@ -348,7 +348,7 @@ impl Builder for UnionBuilder {
                             buf.write_str(&off.to_string());
                         }
                     } else {
-                        // fallback：仍使用占位符
+                        // Fallback: keep placeholders.
                         buf.write_leading("LIMIT");
                         buf.write_str(" ");
                         buf.write_str(lim_ph);

@@ -1,4 +1,4 @@
-//! injection：按 marker 注入额外 SQL 片段（对齐 go-sqlbuilder `injection.go`）。
+//! Injection: inject extra SQL fragments at predefined markers.
 #![allow(dead_code)]
 
 use std::collections::HashMap;

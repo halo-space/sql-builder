@@ -1,4 +1,4 @@
-//! WhereClause：可复用 WHERE 子句（对齐 go-sqlbuilder `whereclause.go`）。
+//! WhereClause: reusable WHERE clause builder.
 
 use crate::args::Args;
 use crate::flavor::Flavor;
@@ -11,7 +11,7 @@ use std::rc::Rc;
 pub type ArgsRef = Rc<RefCell<Args>>;
 pub type WhereClauseRef = Rc<RefCell<WhereClause>>;
 
-/// CopyWhereClause：深拷贝一个 WhereClause（对齐 go-sqlbuilder `CopyWhereClause`）。
+/// CopyWhereClause: deep clone a WhereClause.
 pub fn copy_where_clause(wc: &WhereClauseRef) -> WhereClauseRef {
     Rc::new(RefCell::new(wc.borrow().clone()))
 }
@@ -36,7 +36,7 @@ impl Clause {
     }
 }
 
-/// WhereClause：可共享，但不保证线程安全（与 go 一致）。
+/// WhereClause: shareable but not thread-safe.
 #[derive(Debug, Default, Clone)]
 pub struct WhereClause {
     flavor: Flavor,
@@ -58,7 +58,7 @@ impl WhereClause {
         self.flavor
     }
 
-    /// AddWhereExpr：把 AND 条件追加到 where clause（同一个 ArgsRef 会合并进同一 clause）。
+    /// AddWhereExpr: append AND expressions to the where clause (same ArgsRef merges into one clause).
     pub fn add_where_expr<T>(&mut self, args: ArgsRef, exprs: T)
     where
         T: IntoStrings,
@@ -86,7 +86,7 @@ impl WhereClause {
     }
 }
 
-/// WhereClause 作为 Builder：构建出 `WHERE ...`。
+/// WhereClause as a Builder: builds `WHERE ...`.
 #[derive(Clone)]
 pub struct WhereClauseBuilder {
     wc: WhereClauseRef,

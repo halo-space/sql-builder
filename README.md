@@ -1,24 +1,40 @@
 # halo-sqlbuilder 
 
-它是一个对齐 [huandu/go-sqlbuilder](https://github.com/huandu/go-sqlbuilder) 设计的 Rust crate，提供：
+- Provides:
+- `Args` + `Flavor`: placeholder strategies `?`, `$1`, `@p1`, `:1` with dialect control.
+- Builders: `SelectBuilder`, `InsertBuilder`, `UpdateBuilder`, `DeleteBuilder`, `UnionBuilder`, `CTEBuilder`, `CTEQueryBuilder`, `CreateTableBuilder`, covering query/insert/update/delete/aggregate/CTE/Union with cloning.
+- `Build`/`Buildf`/`BuildNamed`: `${name}`, `$0`, `$?`, `$$`, `Raw`, `List`, `Tuple`, nested builders, named arg reuse, literal `$`.
+- `Struct` + `field_mapper`: `macro_rules!` generated `FieldMeta`; supports `db`/`fieldtag`/`fieldopt`/`fieldas`, `with_tag`/`without_tag`, custom mappers (snake_case/kebab_case/prefix/suffix); works with `SqlValuer`.
+- `Scan` + `ScanCell`: Addr-style scanning helpers.
+- `interpolate`: literal SQL interpolation for drivers without parameter support; flavor-aware escaping for strings/numbers/datetime/bool.
+- `SqlValuer`: deferred value computation with custom sources.
+- 138 examples/tests (doc-tests included) covering builder, Struct, CTE, Union, field mapper, named params, etc.
 
-- `Args` + `Flavor`：支持 `?`、`$1`、`@p1`、`:1` 等多种占位符策略，并且允许通过 `Flavor` 跟随不同 SQL 方言；
-- 完整的各类 Builder：`SelectBuilder`、`InsertBuilder`、`UpdateBuilder`、`DeleteBuilder`、`UnionBuilder`、`CTEBuilder`、`CTEQueryBuilder`、`CreateTableBuilder`，同时内建查、插、改、删、聚合、CTE、Union 和 clone 重用模式；
-- `Build`/`Buildf`/`BuildNamed`：支持 `${name}`、`$0`、`$?`、`$$`、`Raw`、`List`、`Tuple` 等语法，并支持嵌套 builder、named arg 重用、literal `$` 等特殊行为；
-- `Struct` + `field_mapper`：通过 `macro_rules!` 生成 `FieldMeta`，支持 `db`/`fieldtag`/`fieldopt`/`fieldas`、`with_tag`/`without_tag`、自定义 field mapper（如 snake_case/kebab_case/prefix/suffix）并兼容 `SqlValuer`；
-- `Scan` + `ScanCell`：仿照 Go 的 `Addr` 实现数据扫描；
-- `interpolate`：为不支持参数化的驱动提供 SQL 插值，涵盖多 flavor 的字符串/数字/日期/布尔等转义；
-- `SqlValuer`：支持延迟计算参数，兼容自定义数据源；
-- 全部示例/单测对齐 Go：138 条单测 + doc-test，覆盖 README 中的 builder、Struct、CTE、Union、field mapper、命名参数等场景。
+## Install & Import
 
-## 安装与导入
+- Install: `cargo add halo-sqlbuilder`
+- Use: `use halo_space::sqlbuilder::{...};`
+
+## 中文使用说明
 
 - 安装：`cargo add halo-sqlbuilder`
-- 使用：`use halo_space::sqlbuilder::{...};`（向下兼容 `halo_space::sqlx::{...}`）
+- 导入：`use halo_space::sqlbuilder::{...};`
+- 典型用法（SELECT）：
+  ```rust
+  use halo_space::sqlbuilder::{select::SelectBuilder, select_cols, from_tables, where_exprs};
 
-## 典型用法
+  let mut sb = SelectBuilder::new();
+  select_cols!(sb, "id", "name");
+  from_tables!(sb, "users");
+  where_exprs!(sb, "status = 'active'");
+  let (sql, args) = sb.build();
+  assert_eq!(sql, "SELECT id, name FROM users WHERE status = 'active'");
+  assert!(args.is_empty());
+  ```
 
-### 创建 SELECT
+## Usage
+
+### Build SELECT
 
 ```rust
 use halo_space::sqlbuilder::{from_tables, select_cols, where_exprs, select::SelectBuilder};
@@ -33,15 +49,15 @@ assert_eq!(sql, "SELECT id FROM user WHERE status IN (?, ?, ?)");
 assert_eq!(args.len(), 3);
 ```
 
-### 直接使用 builder API
+### Builder API directly
 
 ```rust
 use halo_space::sqlbuilder::select::SelectBuilder;
 
 let mut sb = SelectBuilder::new();
-sb.select("id") // 单列
-    .select_more(["name", "email"]) // 支持数组
-    .select_more(vec!["score"]); // 支持 Vec
+sb.select("id") // single column
+    .select_more(["name", "email"]) // array input
+    .select_more(vec!["score"]); // Vec input
 sb.from(["users", "users_detail"]);
 sb.order_by(["name", "score"])
     .where_(["score >= 100", "status = 'active'"]);
@@ -51,11 +67,11 @@ assert!(sql.contains("SELECT id, name, email, score"));
 assert!(sql.contains("FROM users, users_detail"));
 ```
 
-`select` / `select_more` / `from` / `where_` 等函数现在接受任何实现了 `IntoStrings` 的输入（`&str`、`String`、数组、`Vec`），也可直接用宏调用。
+`select` / `select_more` / `from` / `where_` accept anything implementing `IntoStrings` (`&str`, `String`, arrays, `Vec`), or you can call the macros directly.
 
-`SelectBuilder`/`UpdateBuilder`/`DeleteBuilder`/`InsertBuilder` 都自带 `build()` 方法，内部直接调用对应的 `build_with_flavor`，免去再显式导入 `modifiers::Builder`（普通 `insert_into(...).values(...).build()` 也能直接使用）。
+`SelectBuilder`/`UpdateBuilder`/`DeleteBuilder`/`InsertBuilder` expose `build()` which delegates to `build_with_flavor`, so you rarely need to import `modifiers::Builder` explicitly.
 
-### Condition / Chain 查询
+### Condition / Chain queries
 
 ```rust
 use halo_space::sqlbuilder::condition::{
@@ -64,7 +80,7 @@ use halo_space::sqlbuilder::condition::{
 use halo_space::sqlbuilder::select::SelectBuilder;
 use halo_space::sqlbuilder::Flavor;
 
-// 直接用 Condition 组合 OR
+// Build OR conditions
 let conditions = vec![
     Condition::new("name", Operator::Equal, "jzero"),
     Condition {
@@ -96,7 +112,7 @@ assert_eq!(
 );
 assert_eq!(args, vec!["jzero".into(), 24_i64.into(), 48_i64.into(), 170_i64.into(), 175_i64.into()]);
 
-// 链式 Chain，可叠加 join / 分页 / group by / order
+// Chain supports join / pagination / group by / order
 let chain = Chain::new()
     .equal_opts("status", "active", ChainOptions::default().skip(false))
     .join(
@@ -114,7 +130,7 @@ let (sql2, _args2) = build_select_with_flavor(Flavor::MySQL, sb2, chain.build())
 assert!(sql2.contains("INNER JOIN user_ext ON user.id = user_ext.uid"));
 assert!(sql2.contains("LIMIT"));
 
-// 更贴近 Go WithValueFunc/WithSkip/WithSkipFunc 的“后置修饰”写法
+// Post-modifiers similar to Go's WithValueFunc/WithSkip/WithSkipFunc
 // 既可传闭包，也可把已有函数名当回调传进去
 fn compute_name() -> &'static str {
     "jzero"
@@ -122,9 +138,9 @@ fn compute_name() -> &'static str {
 
 let chain2 = Chain::new()
     .equal("name", "placeholder")
-    .value_fn(|| compute_name().into()) // 传函数；也可以写 .value_fn(|| "jzero".into())
-    .skip(false)                 // 可直接写 skip
-    .skip_fn(|| false);          // 高于 skip
+    .value_fn(|| compute_name().into()) // pass a function; .value_fn(|| "jzero".into()) also works
+    .skip(false)                        // set skip
+    .skip_fn(|| false);                 // skip_fn has higher priority
 let mut sb3 = SelectBuilder::new();
 sb3.select(vec!["id", "name"]).from(vec!["user"]);
 let (sql3, args3) = build_select_with_flavor(Flavor::MySQL, sb3, chain2.build());
@@ -134,7 +150,7 @@ assert_eq!(args3, vec!["jzero".into()]);
 
 ### 变长参数宏
 
-宏（`select_cols!`、`from_tables!`、`where_exprs!`、`returning_cols!` 等）可直接从根导入：`use halo_space::sqlbuilder::{select_cols, from_tables, where_exprs};`，自动把多个字符串/列名展开为 `Vec<String>`，无需手动构造切片。
+Macros (`select_cols!`, `from_tables!`, `where_exprs!`, `returning_cols!`, etc.) can be imported from the root: `use halo_space::sqlbuilder::{select_cols, from_tables, where_exprs};` They expand multiple strings/columns into `Vec<String>` so you don't build slices manually.
 
 ```rust
 use halo_space::sqlbuilder::{from_tables, order_by_cols, select_cols, where_exprs, select::SelectBuilder};
@@ -149,7 +165,7 @@ let (sql, _) = sb.build();
 assert!(sql.contains("WHERE"));
 ```
 
-宏还覆盖了 `insert_cols!` / `insert_select_cols!` / `delete_from_tables!` / `update_set!` / `create_table_define!` / `struct_with_tag!` 等常见接受字符串 varargs 的接口。
+Other macros: `insert_cols!` / `insert_select_cols!` / `delete_from_tables!` / `update_set!` / `create_table_define!` / `struct_with_tag!` for common string varargs.
 
 ### INSERT / RETURNING
 
@@ -181,7 +197,7 @@ let (sql, _) = ub.build();
 assert!(sql.contains("UPDATE users SET score = score + 1 WHERE status = 'active' ORDER BY score DESC"));
 ```
 
-### Condition / Chain 更新
+### Condition / Chain update
 
 ```rust
 use halo_space::sqlbuilder::condition::{
@@ -235,7 +251,7 @@ let (sql, _) = explain.build();
 assert!(sql.contains("EXPLAIN SELECT id FROM user"));
 ```
 
-### named 参数
+### Named parameters
 
 ```rust
 use halo_space::sqlbuilder::{
@@ -261,7 +277,7 @@ assert!(sql.contains("@start"));
 ```rust
 use halo_space::sqlbuilder::{field_mapper::snake_case_mapper, Struct};
 
-// 启用 snake_case 映射
+// Enable snake_case mapping
 let _guard = halo_space::sqlbuilder::field_mapper::set_default_field_mapper_scoped(
     std::sync::Arc::new(snake_case_mapper),
 );
@@ -285,7 +301,7 @@ let (sql, _) = s.select_from("user").build();
 assert!(sql.contains("user.user_name"));
 ```
 
-### CTE 与 Union
+### CTE and Union
 
 ```rust
 use halo_space::sqlbuilder::{
@@ -345,7 +361,7 @@ let (sql, _) = ct.build();
 assert!(sql.contains("CREATE TABLE"));
 ```
 
-### Flavor 切换
+### Flavor switching
 
 ```rust
 use halo_space::sqlbuilder::{Flavor, select::SelectBuilder, select_cols, from_tables};
@@ -354,11 +370,11 @@ let mut sb = SelectBuilder::new();
 select_cols!(sb, "id");
 from_tables!(sb, "user");
 
-// 默认使用全局 Flavor；也可临时切换
+// Uses global Flavor by default; can switch temporarily
 let (pg_sql, _) = sb.build_with_flavor(Flavor::PostgreSQL, &[]);
 let (mysql_sql, _) = sb.build_with_flavor(Flavor::MySQL, &[]);
-assert!(pg_sql.contains("$1") || pg_sql.contains("$2")); // PostgreSQL 占位符
-assert!(mysql_sql.contains("?")); // MySQL 占位符
+assert!(pg_sql.contains("$1") || pg_sql.contains("$2")); // PostgreSQL placeholders
+assert!(mysql_sql.contains("?")); // MySQL placeholders
 ```
 
 ### Args/占位符与命名参数
@@ -375,8 +391,8 @@ let (sql, args) = build_named(
     "SELECT * FROM ${table} WHERE id IN (${ids}) AND created_at > ${now}",
     named,
 ).build();
-assert!(sql.contains("@t")); // 命名占位符
-assert_eq!(args.len(), 0);   // named 参数不进入 args
+assert!(sql.contains("@t")); // named placeholder
+assert_eq!(args.len(), 0);   // named params not in args
 ```
 
 ### Build/Buildf 快速包装
@@ -406,13 +422,13 @@ halo_space::sqlbuilder::sql_struct! {
     }
 }
 
-let s = Struct::<User>::new().with_tag(["json"]); // 只选择带 json tag 的字段
+let s = Struct::<User>::new().with_tag(["json"]); // only fields tagged json
 let sb = s.select_from("user");
 let (sql, _) = sb.build();
 assert!(sql.contains("user.user_name"));
 ```
 
-### Scan/Addr 拿到结果
+### Scan/Addr usage
 
 ```rust
 use halo_space::sqlbuilder::scan::{ScanCell, scan_tokens};
@@ -429,7 +445,7 @@ assert_eq!(id, 42);
 assert_eq!(name, "alice");
 ```
 
-### interpolate（非参数化场景）
+### interpolate (non-parameterized)
 
 ```rust
 use halo_space::sqlbuilder::interpolate::interpolate_with_flavor;
@@ -444,7 +460,7 @@ assert!(sql.contains("'alice'"));
 assert!(sql.contains("90"));
 ```
 
-### SqlValuer 延迟取值
+### SqlValuer deferred values
 
 ```rust
 use halo_space::sqlbuilder::{valuer::SqlValuer, value::SqlValue};
@@ -452,7 +468,7 @@ use halo_space::sqlbuilder::{valuer::SqlValuer, value::SqlValue};
 struct Now;
 impl SqlValuer for Now {
     fn to_sql_value(&self) -> Result<SqlValue, halo_space::sqlbuilder::valuer::ValuerError> {
-        Ok(SqlValue::I64(1_700_000_000)) // 示例：返回当前时间戳
+        Ok(SqlValue::I64(1_700_000_000)) // example: return current timestamp
     }
 }
 
@@ -475,7 +491,7 @@ MIT
 
 ## 致谢
 
-- [huandu/go-sqlbuilder](https://github.com/huandu/go-sqlbuilder)：Rust 版本的设计和行为对齐自该项目。
-- [jzero](https://github.com/jzero-io/jzero)：链式条件与模板思路来源，并在示例中保持一致的使用体验。
+- [huandu/go-sqlbuilder](https://github.com/huandu/go-sqlbuilder): design inspiration.
+- [jzero](https://github.com/jzero-io/jzero): chain and template ideas used in examples.
 
 

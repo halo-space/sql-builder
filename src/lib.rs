@@ -1,4 +1,4 @@
-//! halo-sqlbuilder：可组合的 SQL builder 与参数收集库。
+//! halo-sqlbuilder: composable SQL builder and argument collector.
 
 pub mod args;
 #[cfg(test)]
@@ -102,12 +102,7 @@ pub use crate::value::SqlValue;
 pub use crate::valuer::{SqlValuer, ValuerError};
 pub use crate::where_clause::{WhereClause, WhereClauseBuilder, WhereClauseRef, copy_where_clause};
 
-/// 推荐的便捷命名空间：允许 `use halo_space::sqlbuilder::{...}` 形式导入。
+/// Preferred namespace: `use halo_space::sqlbuilder::{...}`.
 pub mod sqlbuilder {
-    pub use crate::*;
-}
-
-/// 兼容旧用法的便捷命名空间：仍可 `use halo_space::sqlx::{...}` 导入。
-pub mod sqlx {
     pub use crate::*;
 }

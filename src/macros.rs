@@ -1,5 +1,5 @@
-//! 宏集合：为 builder 提供 Go 式的可变参数调用封装。
-//! 通过 `select_cols!` / `where_exprs!` 等宏，可以使用不定长字符串参数而无需手动创建 `Vec`。
+//! Macro helpers providing variadic-style ergonomics for builders.
+//! Macros like `select_cols!` / `where_exprs!` accept varargs strings without manual Vec creation.
 
 #[doc(hidden)]
 #[macro_export]
@@ -133,7 +133,7 @@ macro_rules! __builder_with_strings_after_two {
     };
 }
 
-/// 为 `SelectBuilder::select` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `SelectBuilder::select`.
 #[macro_export]
 macro_rules! select_cols {
     ($builder:expr $(, $col:expr)* $(,)?) => {
@@ -142,7 +142,7 @@ macro_rules! select_cols {
 }
 pub use crate::select_cols;
 
-/// 为 `SelectBuilder::select_more` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `SelectBuilder::select_more`.
 #[macro_export]
 macro_rules! select_more_cols {
     ($builder:expr $(, $col:expr)* $(,)?) => {
@@ -151,7 +151,7 @@ macro_rules! select_more_cols {
 }
 pub use crate::select_more_cols;
 
-/// 为 `SelectBuilder::from` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `SelectBuilder::from`.
 #[macro_export]
 macro_rules! from_tables {
     ($builder:expr $(, $table:expr)* $(,)?) => {
@@ -160,7 +160,7 @@ macro_rules! from_tables {
 }
 pub use crate::from_tables;
 
-/// 为 `SelectBuilder::join` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `SelectBuilder::join`.
 #[macro_export]
 macro_rules! join_on {
     ($builder:expr, $table:expr $(, $expr:expr)* $(,)?) => {
@@ -169,7 +169,7 @@ macro_rules! join_on {
 }
 pub use crate::join_on;
 
-/// 为 `SelectBuilder::join_with_option` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `SelectBuilder::join_with_option`.
 #[macro_export]
 macro_rules! join_with_option {
     ($builder:expr, $option:expr, $table:expr $(, $expr:expr)* $(,)?) => {
@@ -178,7 +178,7 @@ macro_rules! join_with_option {
 }
 pub use crate::join_with_option;
 
-/// 为所有 `where_` 调用提供 Go 风格的可变参数调用（Select/Update/Delete）。
+/// Variadic helper for `where_` calls (Select/Update/Delete).
 #[macro_export]
 macro_rules! where_exprs {
     ($builder:expr $(, $expr:expr)* $(,)?) => {
@@ -187,7 +187,7 @@ macro_rules! where_exprs {
 }
 pub use crate::where_exprs;
 
-/// 为 `having` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `having`.
 #[macro_export]
 macro_rules! having_exprs {
     ($builder:expr $(, $expr:expr)* $(,)?) => {
@@ -196,7 +196,7 @@ macro_rules! having_exprs {
 }
 pub use crate::having_exprs;
 
-/// 为 `group_by` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `group_by`.
 #[macro_export]
 macro_rules! group_by_cols {
     ($builder:expr $(, $col:expr)* $(,)?) => {
@@ -205,7 +205,7 @@ macro_rules! group_by_cols {
 }
 pub use crate::group_by_cols;
 
-/// 为 `order_by` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `order_by`.
 #[macro_export]
 macro_rules! order_by_cols {
     ($builder:expr $(, $col:expr)* $(,)?) => {
@@ -214,7 +214,7 @@ macro_rules! order_by_cols {
 }
 pub use crate::order_by_cols;
 
-/// 为 `InsertBuilder::cols` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `InsertBuilder::cols`.
 #[macro_export]
 macro_rules! insert_cols {
     ($builder:expr $(, $col:expr)* $(,)?) => {
@@ -223,7 +223,7 @@ macro_rules! insert_cols {
 }
 pub use crate::insert_cols;
 
-/// 为 `InsertBuilder::select` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `InsertBuilder::select`.
 #[macro_export]
 macro_rules! insert_select_cols {
     ($builder:expr $(, $col:expr)* $(,)?) => {
@@ -232,7 +232,7 @@ macro_rules! insert_select_cols {
 }
 pub use crate::insert_select_cols;
 
-/// 为所有 `returning` 调用提供 Go 风格的可变参数调用。
+/// Variadic helper for `returning` calls.
 #[macro_export]
 macro_rules! returning_cols {
     ($builder:expr $(, $col:expr)* $(,)?) => {
@@ -241,7 +241,7 @@ macro_rules! returning_cols {
 }
 pub use crate::returning_cols;
 
-/// 为 `DeleteBuilder::delete_from` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `DeleteBuilder::delete_from`.
 #[macro_export]
 macro_rules! delete_from_tables {
     ($builder:expr $(, $table:expr)* $(,)?) => {
@@ -250,7 +250,7 @@ macro_rules! delete_from_tables {
 }
 pub use crate::delete_from_tables;
 
-/// 为 `UpdateBuilder::update` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `UpdateBuilder::update`.
 #[macro_export]
 macro_rules! update_tables {
     ($builder:expr $(, $table:expr)* $(,)?) => {
@@ -259,7 +259,7 @@ macro_rules! update_tables {
 }
 pub use crate::update_tables;
 
-/// 为 `UpdateBuilder::set` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `UpdateBuilder::set`.
 #[macro_export]
 macro_rules! update_set {
     ($builder:expr $(, $assignment:expr)* $(,)?) => {
@@ -268,7 +268,7 @@ macro_rules! update_set {
 }
 pub use crate::update_set;
 
-/// 为 `UpdateBuilder::set_more` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `UpdateBuilder::set_more`.
 #[macro_export]
 macro_rules! update_set_more {
     ($builder:expr $(, $assignment:expr)* $(,)?) => {
@@ -277,7 +277,7 @@ macro_rules! update_set_more {
 }
 pub use crate::update_set_more;
 
-/// 为 `CTEBuilder::select` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `CTEBuilder::select`.
 #[macro_export]
 macro_rules! cte_select_cols {
     ($builder:expr $(, $col:expr)* $(,)?) => {
@@ -286,7 +286,7 @@ macro_rules! cte_select_cols {
 }
 pub use crate::cte_select_cols;
 
-/// 为 `CTEBuilder::delete_from` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `CTEBuilder::delete_from`.
 #[macro_export]
 macro_rules! cte_delete_from {
     ($builder:expr $(, $table:expr)* $(,)?) => {
@@ -295,7 +295,7 @@ macro_rules! cte_delete_from {
 }
 pub use crate::cte_delete_from;
 
-/// 为 `CTEBuilder::update` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `CTEBuilder::update`.
 #[macro_export]
 macro_rules! cte_update_tables {
     ($builder:expr $(, $table:expr)* $(,)?) => {
@@ -304,7 +304,7 @@ macro_rules! cte_update_tables {
 }
 pub use crate::cte_update_tables;
 
-/// 为 `CTEQueryBuilder::table` 提供 Go 风格的列名参数。
+/// Variadic helper for `CTEQueryBuilder::table`.
 #[macro_export]
 macro_rules! cte_query_table {
     ($builder:expr, $name:expr $(, $col:expr)* $(,)?) => {
@@ -313,7 +313,7 @@ macro_rules! cte_query_table {
 }
 pub use crate::cte_query_table;
 
-/// 为 `CreateTableBuilder::define` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `CreateTableBuilder::define`.
 #[macro_export]
 macro_rules! create_table_define {
     ($builder:expr $(, $def:expr)* $(,)?) => {
@@ -322,7 +322,7 @@ macro_rules! create_table_define {
 }
 pub use crate::create_table_define;
 
-/// 为 `CreateTableBuilder::option` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `CreateTableBuilder::option`.
 #[macro_export]
 macro_rules! create_table_option {
     ($builder:expr $(, $opt:expr)* $(,)?) => {
@@ -331,7 +331,7 @@ macro_rules! create_table_option {
 }
 pub use crate::create_table_option;
 
-/// 为 `Struct::with_tag` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `Struct::with_tag`.
 #[macro_export]
 macro_rules! struct_with_tag {
     ($builder:expr $(, $tag:expr)* $(,)?) => {
@@ -340,7 +340,7 @@ macro_rules! struct_with_tag {
 }
 pub use crate::struct_with_tag;
 
-/// 为 `Struct::without_tag` 提供 Go 风格的可变参数调用。
+/// Variadic helper for `Struct::without_tag`.
 #[macro_export]
 macro_rules! struct_without_tag {
     ($builder:expr $(, $tag:expr)* $(,)?) => {

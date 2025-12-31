@@ -1,4 +1,4 @@
-//! CreateTableBuilder：构建 CREATE TABLE（对齐 go-sqlbuilder `createtable.go`）。
+//! CreateTableBuilder: build CREATE TABLE statements.
 
 use crate::args::Args;
 use crate::flavor::Flavor;
@@ -103,7 +103,7 @@ impl CreateTableBuilder {
         self.defs.len()
     }
 
-    // CreateTableBuilder 当前不需要参数占位符；后续如需要可再引入。
+    // CreateTableBuilder currently doesn't need placeholders; add later if needed.
 }
 
 impl Builder for CreateTableBuilder {
@@ -134,7 +134,7 @@ impl Builder for CreateTableBuilder {
             write_injection(&mut buf, &self.injection, CT_MARKER_AFTER_OPTION);
         }
 
-        // flavor 参数目前仅影响占位符；CreateTable 本身一般不产生占位符
+        // flavor currently only affects placeholders; CREATE TABLE typically doesn't produce placeholders
         let _ = flavor;
         self.args
             .borrow()

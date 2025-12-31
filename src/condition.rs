@@ -1,4 +1,4 @@
-//! 条件链与条件构建器（对齐 jzero `core/stores/condition` 的链式与条件能力）。
+//! Condition chaining and builders.
 use crate::DeleteBuilder;
 use crate::cond::Cond;
 use crate::flavor::{Flavor, default_flavor};
@@ -10,7 +10,7 @@ use crate::where_clause::{WhereClause, WhereClauseRef};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-/// 条件运算符。
+/// Condition operators.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Operator {
     Equal,
@@ -36,7 +36,7 @@ pub enum Operator {
     Join,
 }
 
-/// 条件值，支持单值或列表值。
+/// Condition value supporting scalar or list.
 #[derive(Debug, Clone)]
 pub enum ConditionValue {
     Single(Arg),
@@ -101,7 +101,7 @@ impl<T: Into<Arg>> From<HashMap<String, T>> for ConditionValue {
     }
 }
 
-/// 可选项：控制 skip/value 函数。
+/// Options to control skip/value functions.
 #[derive(Clone, Default)]
 pub struct ChainOptions {
     pub skip: bool,
@@ -146,7 +146,7 @@ impl std::fmt::Debug for ChainOptions {
     }
 }
 
-/// Join 条件。
+/// Join condition metadata.
 #[derive(Debug, Clone)]
 pub struct JoinCondition {
     pub option: Option<JoinOption>,
@@ -154,7 +154,7 @@ pub struct JoinCondition {
     pub on_expr: Vec<String>,
 }
 
-/// 组合条件。
+/// Single condition item.
 #[derive(Clone)]
 pub struct Condition {
     pub skip: bool,
@@ -226,7 +226,7 @@ impl Chain {
         Self::default()
     }
 
-    /// 修改当前链尾部的条件（若不存在条件则忽略），用于模拟 Go 版可变参 Option 的“后置修饰”体验。
+    /// Modify the last condition (no-op if absent); simulates Go-style variadic options that adjust the tail.
     fn map_last(mut self, f: impl FnOnce(&mut Condition)) -> Self {
         if let Some(last) = self.conditions.last_mut() {
             f(last);
@@ -268,17 +268,17 @@ impl Chain {
         self.add_chain(field, Operator::Equal, value, ChainOptions::default())
     }
 
-    /// 为最近一次添加的条件设置 value_fn（优先级高于显式 value），贴近 Go 版 WithValueFunc。
+    /// Set value_fn on the last condition (higher priority than explicit value), similar to Go's WithValueFunc.
     pub fn value_fn(self, f: impl Fn() -> ConditionValue + Send + Sync + 'static) -> Self {
         self.map_last(|c| c.value_fn = Some(Arc::new(f)))
     }
 
-    /// 为最近一次添加的条件设置 skip，贴近 Go 版 WithSkip。
+    /// Set skip on the last condition, similar to Go's WithSkip.
     pub fn skip(self, skip: bool) -> Self {
         self.map_last(|c| c.skip = skip)
     }
 
-    /// 为最近一次添加的条件设置 skip_fn（优先级高于 skip），贴近 Go 版 WithSkipFunc。
+    /// Set skip_fn on the last condition (higher priority than skip), similar to Go's WithSkipFunc.
     pub fn skip_fn(self, f: impl Fn() -> bool + Send + Sync + 'static) -> Self {
         self.map_last(|c| c.skip_fn = Some(Arc::new(f)))
     }
@@ -495,7 +495,7 @@ impl Chain {
     }
 }
 
-/// UpdateField 操作类型。
+/// UpdateField operator kinds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UpdateFieldOperator {
     Incr,
@@ -507,7 +507,7 @@ pub enum UpdateFieldOperator {
     Div,
 }
 
-/// UpdateField 可选项。
+/// Options for UpdateField.
 #[derive(Clone, Default)]
 pub struct UpdateFieldOptions {
     pub skip: bool,
@@ -542,7 +542,7 @@ impl std::fmt::Debug for UpdateFieldOptions {
     }
 }
 
-/// UpdateField 描述。
+/// UpdateField descriptor.
 #[derive(Clone)]
 pub struct UpdateField {
     pub skip: bool,
@@ -584,7 +584,7 @@ impl std::fmt::Debug for UpdateField {
     }
 }
 
-/// UpdateField 链。
+/// A chain of UpdateField operations.
 #[derive(Debug, Default, Clone)]
 pub struct UpdateFieldChain {
     fields: Vec<UpdateField>,
@@ -709,7 +709,7 @@ impl UpdateFieldChain {
     }
 }
 
-/// Update 更新值。
+/// Update values payload.
 #[derive(Debug, Clone)]
 pub enum UpdateValue {
     Field(UpdateField),
@@ -745,7 +745,7 @@ pub fn unquote(s: &str) -> String {
     out.to_string()
 }
 
-/// 按 Flavor 对字段名逐段 Quote（按 `.` 切分）。
+/// Quote each segment of a dotted field name according to the flavor.
 pub fn quote_with_flavor(flavor: Flavor, s: &str) -> String {
     let parts: Vec<String> = s
         .split('.')
@@ -1024,7 +1024,7 @@ fn apply_delete_condition(flavor: Flavor, builder: &mut DeleteBuilder, condition
     }
 }
 
-/// 构建 SELECT。
+/// Build SELECT with default flavor.
 pub fn build_select(
     builder: SelectBuilder,
     conditions: impl IntoIterator<Item = Condition>,
@@ -1032,7 +1032,7 @@ pub fn build_select(
     build_select_with_flavor(default_flavor(), builder, conditions)
 }
 
-/// 构建 SELECT（指定 Flavor）。
+/// Build SELECT with a specific flavor.
 pub fn build_select_with_flavor(
     flavor: Flavor,
     mut builder: SelectBuilder,
@@ -1049,7 +1049,7 @@ pub fn build_select_with_flavor(
     builder.build_with_flavor(flavor, &[])
 }
 
-/// 构建 UPDATE。
+/// Build UPDATE with default flavor.
 pub fn build_update(
     builder: UpdateBuilder,
     data: impl IntoIterator<Item = (impl Into<String>, impl Into<UpdateValue>)>,
@@ -1058,7 +1058,7 @@ pub fn build_update(
     build_update_with_flavor(default_flavor(), builder, data, conditions)
 }
 
-/// 构建 UPDATE（指定 Flavor）。
+/// Build UPDATE with a specific flavor.
 pub fn build_update_with_flavor(
     flavor: Flavor,
     mut builder: UpdateBuilder,
@@ -1132,7 +1132,7 @@ pub fn build_update_with_flavor(
     builder.build_with_flavor(flavor, &[])
 }
 
-/// 构建 DELETE。
+/// Build DELETE with default flavor.
 pub fn build_delete(
     builder: DeleteBuilder,
     conditions: impl IntoIterator<Item = Condition>,
@@ -1140,7 +1140,7 @@ pub fn build_delete(
     build_delete_with_flavor(default_flavor(), builder, conditions)
 }
 
-/// 构建 DELETE（指定 Flavor）。
+/// Build DELETE with a specific flavor.
 pub fn build_delete_with_flavor(
     flavor: Flavor,
     mut builder: DeleteBuilder,
